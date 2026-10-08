@@ -1,3 +1,10 @@
 node_modules
+.next
 dist
+out
+.env
+.env.local
 .DS_Store
+*.tsbuildinfo
+pinequest-s5-episode-1-team-9/
+data/
