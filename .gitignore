@@ -4,6 +4,7 @@ dist
 out
 .env
 .env.local
+.env*.local
 .DS_Store
 *.tsbuildinfo
 pinequest-s5-episode-1-team-9/
