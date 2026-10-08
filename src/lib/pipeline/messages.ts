@@ -7,7 +7,7 @@ export const messages = {
   analyze: mn.errors.analyze,
   render: mn.errors.render,
   ffmpegMissing: mn.errors.ffmpeg,
-  chimegeMissing: mn.errors.chimege,
+  duudlagaMissing: mn.errors.duudlaga,
   geminiMissing: mn.errors.gemini,
   demo: mn.errors.demo,
   generic: mn.errors.processing,

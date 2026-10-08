@@ -6,7 +6,7 @@ import { messages, PipelineError } from "@/lib/pipeline/messages";
 import { segmentsFromAnalysis } from "@/lib/pipeline/timeline";
 import { localStorage } from "@/lib/storage/local";
 import { uploadPath } from "@/lib/storage/paths";
-import { createChimegeProvider } from "@/lib/speech/chimege/client";
+import { createDuudlagaProvider } from "@/lib/speech/providers/duudlaga";
 import type { SpeechToTextProvider } from "@/lib/speech/types";
 import { createPexelsProvider } from "@/lib/visuals/pexels";
 import { chooseVisual } from "@/lib/visuals/rank";
@@ -170,7 +170,7 @@ function speechSegment(segment: { start: number; end: number; text: string }, in
 export function productionDeps(repo: VideoRepository): PipelineDeps {
   return {
     repo,
-    speech: createChimegeProvider(),
+    speech: createDuudlagaProvider(),
     recommend: process.env.GEMINI_API_KEY ? new GeminiVisualRecommendationModel() : null,
     search: process.env.PEXELS_API_KEY ? createPexelsProvider() : null,
     extractAudio,

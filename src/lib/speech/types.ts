@@ -10,11 +10,15 @@ export type TimedSegment = {
   text: string;
 };
 
+export type TimingSource = "estimated" | "provider";
+
 export type SpeechTranscript = {
   language: "mn";
   text: string;
   words: TranscriptWord[];
   segments: TimedSegment[];
+  /** Segment boundaries are estimated unless the provider returned its own timestamps. */
+  timing: TimingSource;
 };
 
 export interface SpeechProvider {

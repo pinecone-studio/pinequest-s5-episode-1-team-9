@@ -7,8 +7,6 @@ import { segmentsFromAnalysis } from "@/lib/pipeline/timeline";
 import { processVideo, type PipelineDeps } from "@/server/pipeline/processVideo";
 import { MemoryVideoRepository } from "@/server/repositories/fileVideoRepository";
 import { alignTranscript, splitCaption } from "@/lib/speech/align";
-import { createChimegeProvider } from "@/lib/speech/chimege/client";
-import { parseChimegeBody } from "@/lib/speech/chimege/parse";
 import { chooseVisual, scoreCandidate } from "@/lib/visuals/rank";
 import type { VisualCandidate } from "@/lib/visuals/types";
 
@@ -145,16 +143,6 @@ describe("visual ranking", () => {
 });
 
 describe("providers and demo mode", () => {
-  it("does not transcribe when the Chimege key is missing", async () => {
-    const provider = createChimegeProvider({ key: "" });
-    await expect(provider.transcribe(new Uint8Array([1, 2, 3]), 4)).rejects.toThrow(messages.chimegeMissing);
-  });
-
-  it("parses a short Chimege transcript and a pending long job", () => {
-    expect(parseChimegeBody("Монгол яриа.", "text/plain")).toMatchObject({ done: true, text: "Монгол яриа." });
-    expect(parseChimegeBody(JSON.stringify({ done: false }), "application/json")).toEqual({ pending: true });
-  });
-
   it("keeps demo mode on unless it is explicitly disabled", () => {
     const previousPublic = process.env.NEXT_PUBLIC_DEMO_MODE;
     const previousServer = process.env.DEMO_MODE;
@@ -220,6 +208,7 @@ function fakeDeps(repo: MemoryVideoRepository, analysis: Analysis): PipelineDeps
           text: "Сүүлийн жилүүдэд Монголд startup.",
           words: [],
           segments: [{ start: 0, end: 6, text: "Сүүлийн жилүүдэд Монголд startup." }],
+          timing: "estimated",
         };
       },
     },
