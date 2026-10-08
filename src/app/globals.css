@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #f4f1fb;
+  --color-ink-2: #ebe6f7;
+  --color-panel: #ffffff;
+  --color-panel-2: #f6f3ff;
+  --color-line: #e5dff3;
+  --color-paper: #1b1633;
+  --color-mute: #655d7c;
+  --color-faint: #8d86a3;
+  --color-accent: #6d4aff;
+  --color-accent-ink: #ffffff;
+  --color-cyan: #22b8d6;
+  --color-pink: #ee6ea8;
+  --color-success: #1c9a68;
+  --color-warning: #d0892b;
+  --color-danger: #d64545;
+}
+
+@theme inline {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  background: #f4f1fb;
+}
+
+body {
+  color: var(--color-paper);
+}
+
+.studio-bg {
+  background-color: #f4f1fb;
+  background-image:
+    radial-gradient(ellipse 46% 34% at 6% -4%, rgba(109, 74, 255, 0.18), transparent 62%),
+    radial-gradient(ellipse 38% 30% at 96% 0%, rgba(34, 184, 214, 0.2), transparent 58%),
+    radial-gradient(ellipse 32% 28% at 78% 100%, rgba(238, 110, 168, 0.14), transparent 60%),
+    linear-gradient(rgba(109, 74, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(109, 74, 255, 0.035) 1px, transparent 1px);
+  background-size: auto, auto, auto, 28px 28px, 28px 28px;
+}
+
+::selection {
+  background: #d9ceff;
+  color: #1b1633;
+}
+
+@keyframes ayan-playhead {
+  from {
+    left: 8%;
+  }
+  to {
+    left: 88%;
+  }
+}
+
+.ayan-playhead {
+  animation: ayan-playhead 8.5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ayan-playhead {
+    animation: none;
+    left: 46%;
+  }
+}
