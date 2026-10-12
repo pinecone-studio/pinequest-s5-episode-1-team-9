@@ -1,11 +1,9 @@
 node_modules
 .next
 dist
-out
 .env
 .env.local
-.env*.local
+*.log
 .DS_Store
+next-env.d.ts
 *.tsbuildinfo
-pinequest-s5-episode-1-team-9/
-data/
