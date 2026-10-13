@@ -5,12 +5,14 @@ import helmet from "helmet";
 import { createServer } from "node:http";
 import { allowedOrigins, env, isAllowedOrigin } from "./config/env";
 import { connectDatabase, disconnectDatabase } from "./db/connect";
+import { adminRouter } from "./routes/admin";
 import { assessmentRouter } from "./routes/assessment";
 import { authRouter } from "./routes/auth";
 import { conversationsRouter } from "./routes/conversations";
 import { usersRouter } from "./routes/users";
 import { isAIConfigured } from "./services/ai";
 import { purgeStaleTranscripts } from "./services/feedback/feedbackService";
+import { purgeExpiredEvidence } from "./services/moderation/moderationService";
 import { SPEECH_MODE, pronunciationCapability } from "./services/speech";
 import { createSocketServer } from "./socket";
 import { logAuthFailure } from "./utils/auth";
@@ -35,7 +37,7 @@ async function main() {
     logAuthFailure("http", "wrong_origin", { path: req.path, origin: req.headers.origin });
     res.status(403).json({ error: "Origin not allowed" });
   });
-  app.use(express.json({ limit: "100kb" }));
+  app.use(express.json({ limit: "2mb" }));
   app.use(cookieParser());
 
   app.get("/api/health", (_req, res) => {
@@ -49,6 +51,7 @@ async function main() {
   app.use("/api/me", usersRouter);
   app.use("/api/conversations", conversationsRouter);
   app.use("/api/assessment", assessmentRouter);
+  app.use("/api/admin", adminRouter);
   app.use("/api", (_req, res) => {
     res.status(404).json({ error: "Not found" });
   });
@@ -57,8 +60,12 @@ async function main() {
   const httpServer = createServer(app);
   const io = createSocketServer(httpServer);
 
-  const sweep = setInterval(() => void purgeStaleTranscripts().catch(console.error), 3600_000);
+  const sweep = setInterval(() => {
+    void purgeStaleTranscripts().catch(console.error);
+    void purgeExpiredEvidence().catch(console.error);
+  }, 3600_000);
   void purgeStaleTranscripts().catch(console.error);
+  void purgeExpiredEvidence().catch(console.error);
 
   httpServer.listen(env.PORT, () => {
     console.log(`[server] LinguaMatch API listening on port ${env.PORT}`);

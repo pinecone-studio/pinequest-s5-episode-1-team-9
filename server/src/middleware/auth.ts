@@ -36,3 +36,15 @@ export function currentUser(req: Request): UserDoc {
   if (!req.user) throw new HttpError(401, "Not signed in");
   return req.user;
 }
+
+/**
+ * Admin gate. Must run after {@link requireAuth}. Rejects every /admin and /api/admin request
+ * from a signed-in non-admin with 403, so the routes never run a moderation action by accident.
+ */
+export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
+  if (req.user?.role !== "admin") {
+    logAuthFailure("http", "forbidden_admin", { path: req.originalUrl.split("?")[0] });
+    throw new HttpError(403, "Admin access required");
+  }
+  next();
+}

@@ -15,14 +15,18 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
+import { captureBlurredFrames } from "@/lib/evidence";
 
 export function ReportDialog({
   conversationId,
+  remoteStream,
   open,
   onOpenChange,
   onDone,
 }: {
   conversationId: string;
+  /** The partner's video, sampled for blurred evidence frames when the report is sent. */
+  remoteStream?: MediaStream | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDone: () => void;
@@ -36,7 +40,8 @@ export function ReportDialog({
     setBusy(true);
     setError(null);
     try {
-      await api.report(conversationId, reason, details);
+      const frames = await captureBlurredFrames(remoteStream ?? null);
+      await api.report(conversationId, reason, details, { frames });
       onDone();
     } catch (err) {
       setError((err as Error).message);
@@ -51,7 +56,8 @@ export function ReportDialog({
         <DialogHeader>
           <DialogTitle>Report this person</DialogTitle>
           <DialogDescription>
-            The call will end and you&apos;ll never be matched with them again. Moderators review every report.
+            The call will end and you&apos;ll never be matched with them again. Moderators review every report. A few
+            blurred stills of their video are attached as evidence.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">

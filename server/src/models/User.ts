@@ -17,6 +17,13 @@ const UserSchema = new Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true, select: false },
 
+    /** Only "admin" may open /admin or call /api/admin. Promoted via the make-admin script. */
+    role: { type: String, enum: ["user", "admin"], default: "user", index: true },
+    /** Count of upheld moderation actions (warn/ban). Drives the strike escalation. */
+    strikes: { type: Number, default: 0 },
+    /** Device fingerprints seen for this account, used to ban a device rather than just an account. */
+    deviceFingerprints: { type: [String], default: [] },
+
     nativeLanguage: { type: String, default: null },
     targetLanguages: { type: [LanguageProfileSchema], default: [] },
     activeTargetLanguage: { type: String, default: null },
@@ -72,6 +79,7 @@ export function toUserDTO(user: UserDoc): UserDTO {
     id: user._id.toString(),
     username: user.username,
     email: user.email,
+    role: (user.role ?? "user") as UserDTO["role"],
     nativeLanguage: user.nativeLanguage ?? null,
     targetLanguages: user.targetLanguages.map((t) => ({
       language: t.language,

@@ -99,8 +99,8 @@ Automated: `npm test` covers token verification reasons and the origin allowlist
 shared/   Types, CEFR levels, language list, socket event contracts (used by both apps)
 server/   Express + Socket.IO + Mongoose
   src/config        env validation (zod)
-  src/models        User, MatchQueue, Conversation, ConversationFeedback, Report, Assessment
-  src/routes        auth, me (onboarding/settings/profile), conversations (feedback/report/block), assessment
+  src/models        User, MatchQueue, Conversation, ConversationFeedback, Report, Assessment, AdminAction, Ban, AdminSettings
+  src/routes        auth, me (onboarding/settings/profile), conversations (feedback/report/block), assessment, admin
   src/socket        Socket.IO handshake auth (access token) + event wiring
   src/services
     ai/             provider-agnostic interface + Anthropic implementation, prompts, schemas
@@ -108,13 +108,14 @@ server/   Express + Socket.IO + Mongoose
     matchmaking/    pure pairing algorithm (unit-tested) + in-memory queue service
     rooms/          room lifecycle, WebRTC signaling relay, topics, transcript ingestion
     feedback/       deterministic fluency metrics + AI analysis → per-user reports
-    moderation/     report / block / auto-suspension
+    moderation/     report / block / strikes / bans / evidence retention / auto-suspension
+    admin/          admin dashboard, report actions, users, bans, sessions, settings
     profile/        stats and progress trends
 web/      Next.js (App Router) + Tailwind v4 + shadcn/ui
   src/app           /, /login, /signup, /onboarding, /assessment, /match, /room/[roomId],
-                    /feedback/[conversationId], /profile, /settings, /rules
+                    /feedback/[conversationId], /profile, /settings, /rules, /admin
   src/hooks         useWebRTC, useSpeechRecognition, useLocalMedia
-  src/lib           api client, socket singleton, auth context
+  src/lib           api client, socket singleton, auth context, evidence-frame capture
 ```
 
 ### Conversation flow
@@ -139,9 +140,9 @@ Fluency numbers are computed in code, not by the model. These are word or charac
 - **Speaking rate is approximate.** It's based on when the recognizer first and last heard each phrase.
 - **NAT traversal:** STUN alone fails on some corporate or mobile networks. Set `TURN_URL`, `TURN_USERNAME` and `TURN_CREDENTIAL` for production.
 - **Single process:** the matchmaking queue and room state live in memory. To scale out, move them to Redis and add the Socket.IO Redis adapter.
-- **Moderation is basic:** reports, blocks, automatic 24-hour suspension after `MODERATION_AUTO_SUSPEND_REPORTS` distinct reporters, rate limits, and an 18+ rules agreement. There is no admin review UI or automated video/text content moderation yet.
+- **Moderation:** reports, blocks, automatic 24-hour suspension after `MODERATION_AUTO_SUSPEND_REPORTS` distinct reporters, rate limits, and an 18+ rules agreement. An admin panel at `/admin` handles the review queue, strikes and bans, users, sessions, and language/topic settings; the first admin is created with `npm run make-admin -w server -- <email-or-username>` (the role lives on the user document, so no external dashboard is involved). Reports carry blurred video stills and a transcript snapshot as evidence, deleted after `EVIDENCE_TTL_DAYS` once a case is closed. There is no automatic nudity detection yet — the report API accepts an `aiFlag` from a browser-side check, but nothing sets it.
 
 ## Roadmap (after MVP)
 
-Pronunciation API, admin moderation dashboard, Redis-backed queue, interest-based topics, streaks and gamification, more languages, and email verification and password reset.
+Pronunciation API, browser-side nudity detection (feeding `aiFlag`), Redis-backed queue, interest-based topics, streaks and gamification, more languages, and email verification and password reset.
 # LinguaMatch

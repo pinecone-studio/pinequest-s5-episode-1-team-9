@@ -2,6 +2,7 @@ import { isTargetLanguage } from "@linguamatch/shared";
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
 import { isAllowedOrigin } from "../config/env";
+import { enabledLanguageCodes } from "../services/admin/settingsCache";
 import { Matchmaker, QueueError } from "../services/matchmaking/matchmaker";
 import {
   addTranscriptSegment,
@@ -68,6 +69,12 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "queue:join",
       safe(socket, async (payload) => {
         if (!isTargetLanguage(payload?.targetLanguage)) {
+          socket.emit("queue:error", { message: "Unsupported language" });
+          return;
+        }
+        // Admins can turn a language off; treat it exactly like an unsupported one.
+        const enabled = await enabledLanguageCodes();
+        if (!enabled.has(payload.targetLanguage)) {
           socket.emit("queue:error", { message: "Unsupported language" });
           return;
         }

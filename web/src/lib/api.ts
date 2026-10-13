@@ -1,4 +1,20 @@
-import type { AssessmentQuestion, AssessmentResult, FeedbackDTO, ProfileStats, UserDTO } from "@linguamatch/shared";
+import type {
+  AdminActionType,
+  AdminDashboard,
+  AdminReportDetail,
+  AdminReportSummary,
+  AdminSessionSummary,
+  AdminSettingsDTO,
+  AdminUserSummary,
+  AssessmentQuestion,
+  AssessmentResult,
+  BanDTO,
+  EvidenceFrame,
+  FeedbackDTO,
+  ProfileStats,
+  QueueBucket,
+  UserDTO,
+} from "@linguamatch/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -199,8 +215,13 @@ export const api = {
   feedback: (conversationId: string) => request<{ feedback: FeedbackDTO }>(`/conversations/${conversationId}/feedback`),
   retryFeedback: (conversationId: string) =>
     request<{ ok: true }>(`/conversations/${conversationId}/feedback/retry`, { body: {} }),
-  report: (conversationId: string, reason: string, details: string) =>
-    request<{ ok: true }>(`/conversations/${conversationId}/report`, { body: { reason, details } }),
+  report: (
+    conversationId: string,
+    reason: string,
+    details: string,
+    evidence?: { aiFlag?: "none" | "nudity" | "speech"; autoReported?: boolean; frames?: EvidenceFrame[] },
+  ) =>
+    request<{ ok: true }>(`/conversations/${conversationId}/report`, { body: { reason, details, ...evidence } }),
   block: (conversationId: string) => request<{ ok: true }>(`/conversations/${conversationId}/block`, { body: {} }),
 
   startAssessment: (targetLanguage: string) =>
@@ -210,4 +231,29 @@ export const api = {
   submitAssessment: (id: string, answers: { questionId: string; answer: string }[]) =>
     request<{ result: AssessmentResult }>(`/assessment/${id}/submit`, { body: { answers } }),
   applyAssessment: (id: string) => request<{ user: UserDTO }>(`/assessment/${id}/apply`, { body: {} }),
+
+  // ─── Admin (every call returns 403 unless the account's role is "admin") ───
+  admin: {
+    dashboard: () => request<{ dashboard: AdminDashboard }>("/admin/dashboard"),
+    queue: () => request<{ buckets: QueueBucket[] }>("/admin/queue"),
+    reports: (status = "open") => request<{ reports: AdminReportSummary[] }>(`/admin/reports?status=${status}`),
+    report: (id: string) => request<{ report: AdminReportDetail }>(`/admin/reports/${id}`),
+    reportAction: (id: string, action: AdminActionType, note = "") =>
+      request<{ report: AdminReportDetail }>(`/admin/reports/${id}/action`, { body: { action, note } }),
+    users: (q = "") => request<{ users: AdminUserSummary[] }>(`/admin/users?q=${encodeURIComponent(q)}`),
+    setRole: (id: string, role: "user" | "admin") =>
+      request<{ user: AdminUserSummary }>(`/admin/users/${id}`, { method: "PATCH", body: { role } }),
+    banUser: (id: string, body: { reason: string; durationHours: number | null; deviceFingerprint?: string }) =>
+      request<{ ban: BanDTO }>(`/admin/users/${id}/ban`, { body }),
+    unbanUser: (id: string) => request<{ ok: true }>(`/admin/users/${id}/unban`, { body: {} }),
+    bans: (active = true) => request<{ bans: BanDTO[] }>(`/admin/bans?active=${active ? 1 : 0}`),
+    liftBan: (id: string) => request<{ ok: true }>(`/admin/bans/${id}`, { method: "DELETE" }),
+    sessions: () => request<{ sessions: AdminSessionSummary[] }>("/admin/sessions"),
+    settings: () => request<{ settings: AdminSettingsDTO }>("/admin/settings"),
+    updateSettings: (body: {
+      languages?: { code: string; enabled: boolean }[];
+      topicsByLevel?: Record<string, string[]>;
+      nudityThreshold?: number;
+    }) => request<{ settings: AdminSettingsDTO }>("/admin/settings", { method: "PUT", body }),
+  },
 };

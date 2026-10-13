@@ -14,7 +14,15 @@ export const REFRESH_COOKIE = "lm_refresh";
 export const LEGACY_SESSION_COOKIE = "lm_session";
 
 export type TokenType = "access" | "refresh";
-export type AuthFailureReason = "missing" | "expired" | "invalid_signature" | "malformed" | "wrong_type" | "wrong_origin" | "unknown_user";
+export type AuthFailureReason =
+  | "missing"
+  | "expired"
+  | "invalid_signature"
+  | "malformed"
+  | "wrong_type"
+  | "wrong_origin"
+  | "unknown_user"
+  | "forbidden_admin";
 
 interface TokenPayload {
   sub: string;

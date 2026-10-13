@@ -40,6 +40,8 @@ const EnvSchema = z.object({
 
   /** Distinct reporters within 24h that trigger an automatic temporary suspension. */
   MODERATION_AUTO_SUSPEND_REPORTS: z.coerce.number().int().positive().default(3),
+  /** How long a report's blurred frames and transcript are kept before automatic deletion (open cases keep theirs). */
+  EVIDENCE_TTL_DAYS: z.coerce.number().int().positive().max(365).default(30),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

@@ -273,7 +273,7 @@ export default function RoomPage() {
         </Button>
       </footer>
 
-      <ReportDialog conversationId={roomId} open={dialog === "report"} onOpenChange={(o) => setDialog(o ? "report" : null)} onDone={afterModeration} />
+      <ReportDialog conversationId={roomId} remoteStream={rtc.remoteStream} open={dialog === "report"} onOpenChange={(o) => setDialog(o ? "report" : null)} onDone={afterModeration} />
       <BlockDialog
         conversationId={roomId}
         partnerName={partner?.displayName ?? "this person"}

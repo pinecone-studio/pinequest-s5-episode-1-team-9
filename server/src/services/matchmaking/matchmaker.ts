@@ -9,6 +9,14 @@ interface LiveEntry extends QueueEntry {
   queueDocId: string;
 }
 
+/** Public, read-only view of a queued user for the admin dashboard. */
+export interface LiveQueueEntry {
+  userId: string;
+  targetLanguage: string;
+  level: CefrLevel;
+  joinedAt: number;
+}
+
 export class QueueError extends Error {}
 
 type MatchHandler = (pair: MatchPair) => Promise<string>;
@@ -96,6 +104,20 @@ export class Matchmaker {
     let n = 0;
     for (const e of this.entries.values()) if (e.targetLanguage === targetLanguage) n++;
     return n;
+  }
+
+  totalWaiting(): number {
+    return this.entries.size;
+  }
+
+  /** Read-only snapshot of who is waiting, for the admin dashboard (never mutates the queue). */
+  waitingEntries(): LiveQueueEntry[] {
+    return [...this.entries.values()].map((e) => ({
+      userId: e.userId,
+      targetLanguage: e.targetLanguage,
+      level: e.level,
+      joinedAt: e.joinedAt,
+    }));
   }
 
   private broadcastStatus(targetLanguage: string) {

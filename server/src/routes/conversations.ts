@@ -12,14 +12,28 @@ import { HttpError, parseBody } from "../utils/http";
 export const conversationsRouter = Router();
 conversationsRouter.use(requireAuth);
 
+const EvidenceFrameSchema = z.object({
+  /** Base64 JPEG data URL of an already-blurred frame. Capped so a request can't be huge. */
+  url: z.string().max(300_000),
+  capturedAt: z.string(),
+});
+
 const ReportSchema = z.object({
   reason: z.enum(REPORT_REASONS.map((r) => r.value) as [string, ...string[]]),
   details: z.string().trim().max(1000).default(""),
+  /** Set by the browser nsfwjs check; "none" for a normal user report. */
+  aiFlag: z.enum(["none", "nudity", "speech"]).default("none"),
+  autoReported: z.boolean().default(false),
+  frames: z.array(EvidenceFrameSchema).max(3).default([]),
 });
 
 conversationsRouter.post("/:id/report", rateLimit({ windowMs: 3600_000, limit: 20 }), async (req, res) => {
   const body = parseBody(ReportSchema, req.body);
-  await reportPartner(currentUser(req)._id.toString(), req.params.id as string, body.reason as never, body.details);
+  await reportPartner(currentUser(req)._id.toString(), req.params.id as string, body.reason as never, body.details, {
+    aiFlag: body.aiFlag,
+    autoReported: body.autoReported,
+    frames: body.frames,
+  });
   res.status(201).json({ ok: true });
 });
 
