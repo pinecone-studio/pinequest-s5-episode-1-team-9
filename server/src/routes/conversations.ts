@@ -1,10 +1,9 @@
 import { REPORT_REASONS } from "@linguamatch/shared";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { Types } from "mongoose";
 import { z } from "zod";
 import { currentUser, requireAuth } from "../middleware/auth";
-import { ConversationFeedback } from "../models/ConversationFeedback";
+import { findFeedback, updateFeedback } from "../models/FeedbackReport";
 import { generateConversationFeedback, toFeedbackDTO } from "../services/feedback/feedbackService";
 import { blockPartner, reportPartner } from "../services/moderation/moderationService";
 import { HttpError, parseBody } from "../utils/http";
@@ -12,54 +11,35 @@ import { HttpError, parseBody } from "../utils/http";
 export const conversationsRouter = Router();
 conversationsRouter.use(requireAuth);
 
-const EvidenceFrameSchema = z.object({
-  /** Base64 JPEG data URL of an already-blurred frame. Capped so a request can't be huge. */
-  url: z.string().max(300_000),
-  capturedAt: z.string(),
-});
-
 const ReportSchema = z.object({
   reason: z.enum(REPORT_REASONS.map((r) => r.value) as [string, ...string[]]),
   details: z.string().trim().max(1000).default(""),
-  /** Set by the browser nsfwjs check; "none" for a normal user report. */
-  aiFlag: z.enum(["none", "nudity", "speech"]).default("none"),
-  autoReported: z.boolean().default(false),
-  frames: z.array(EvidenceFrameSchema).max(3).default([]),
 });
 
 conversationsRouter.post("/:id/report", rateLimit({ windowMs: 3600_000, limit: 20 }), async (req, res) => {
   const body = parseBody(ReportSchema, req.body);
-  await reportPartner(currentUser(req)._id.toString(), req.params.id as string, body.reason as never, body.details, {
-    aiFlag: body.aiFlag,
-    autoReported: body.autoReported,
-    frames: body.frames,
-  });
+  await reportPartner(currentUser(req).id, req.params.id as string, body.reason as never, body.details);
   res.status(201).json({ ok: true });
 });
 
 conversationsRouter.post("/:id/block", async (req, res) => {
-  await blockPartner(currentUser(req)._id.toString(), req.params.id as string);
+  await blockPartner(currentUser(req).id, req.params.id as string);
   res.status(201).json({ ok: true });
 });
 
 /** The caller's own report only — a partner's feedback is never readable. */
 conversationsRouter.get("/:id/feedback", async (req, res) => {
-  const id = req.params.id as string;
-  if (!Types.ObjectId.isValid(id)) throw new HttpError(404, "Not found");
-  const feedback = await ConversationFeedback.findOne({ conversationId: id, userId: currentUser(req)._id });
+  const feedback = await findFeedback(req.params.id as string, currentUser(req).id);
   if (!feedback) throw new HttpError(404, "No feedback for this conversation yet");
   res.json({ feedback: await toFeedbackDTO(feedback) });
 });
 
 conversationsRouter.post("/:id/feedback/retry", rateLimit({ windowMs: 600_000, limit: 5 }), async (req, res) => {
   const id = req.params.id as string;
-  if (!Types.ObjectId.isValid(id)) throw new HttpError(404, "Not found");
-  const feedback = await ConversationFeedback.findOne({ conversationId: id, userId: currentUser(req)._id });
+  const feedback = await findFeedback(id, currentUser(req).id);
   if (!feedback) throw new HttpError(404, "Not found");
   if (feedback.status !== "failed") throw new HttpError(400, "Only failed reports can be retried");
-  feedback.status = "pending";
-  feedback.statusMessage = null;
-  await feedback.save();
+  await updateFeedback(feedback.id, { status: "pending", statusMessage: null });
   void generateConversationFeedback(id);
   res.status(202).json({ ok: true });
 });

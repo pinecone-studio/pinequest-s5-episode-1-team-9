@@ -1,4 +1,3 @@
-import type { UserRole } from "./admin";
 import type { CefrLevel } from "./cefr";
 
 export interface LanguageProfile {
@@ -19,9 +18,6 @@ export interface PrivacySettings {
 export interface UserDTO {
   id: string;
   username: string;
-  email: string;
-  /** "admin" unlocks /admin and /api/admin on both the web app and the API. */
-  role: UserRole;
   nativeLanguage: string | null;
   targetLanguages: LanguageProfile[];
   activeTargetLanguage: string | null;

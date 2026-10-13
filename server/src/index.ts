@@ -1,18 +1,18 @@
-import cookieParser from "cookie-parser";
+import { clerkMiddleware } from "@clerk/express";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { createServer } from "node:http";
-import { allowedOrigins, env, isAllowedOrigin } from "./config/env";
+import { allowedOrigins, clerkAuthorizedParties, env, isAllowedOrigin } from "./config/env";
 import { connectDatabase, disconnectDatabase } from "./db/connect";
-import { adminRouter } from "./routes/admin";
 import { assessmentRouter } from "./routes/assessment";
 import { authRouter } from "./routes/auth";
 import { conversationsRouter } from "./routes/conversations";
 import { usersRouter } from "./routes/users";
 import { isAIConfigured } from "./services/ai";
 import { purgeStaleTranscripts } from "./services/feedback/feedbackService";
-import { purgeExpiredEvidence } from "./services/moderation/moderationService";
+import { expireStaleQueueEntries, pruneResolvedQueueEntries } from "./services/matchmaking/matchmaker";
+import { endStaleSessions } from "./services/rooms/roomService";
 import { SPEECH_MODE, pronunciationCapability } from "./services/speech";
 import { createSocketServer } from "./socket";
 import { logAuthFailure } from "./utils/auth";
@@ -20,6 +20,7 @@ import { errorHandler } from "./utils/http";
 
 async function main() {
   await connectDatabase();
+  await Promise.all([expireStaleQueueEntries(), endStaleSessions()]);
 
   const app = express();
   app.set("trust proxy", 1);
@@ -37,8 +38,9 @@ async function main() {
     logAuthFailure("http", "wrong_origin", { path: req.path, origin: req.headers.origin });
     res.status(403).json({ error: "Origin not allowed" });
   });
-  app.use(express.json({ limit: "2mb" }));
-  app.use(cookieParser());
+  app.use(express.json({ limit: "100kb" }));
+  // Verifies the Clerk session token (Bearer header) and rejects tokens minted for other sites.
+  app.use(clerkMiddleware({ authorizedParties: clerkAuthorizedParties }));
 
   app.get("/api/health", (_req, res) => {
     res.json({
@@ -51,7 +53,6 @@ async function main() {
   app.use("/api/me", usersRouter);
   app.use("/api/conversations", conversationsRouter);
   app.use("/api/assessment", assessmentRouter);
-  app.use("/api/admin", adminRouter);
   app.use("/api", (_req, res) => {
     res.status(404).json({ error: "Not found" });
   });
@@ -60,12 +61,12 @@ async function main() {
   const httpServer = createServer(app);
   const io = createSocketServer(httpServer);
 
-  const sweep = setInterval(() => {
+  const runSweep = () => {
     void purgeStaleTranscripts().catch(console.error);
-    void purgeExpiredEvidence().catch(console.error);
-  }, 3600_000);
-  void purgeStaleTranscripts().catch(console.error);
-  void purgeExpiredEvidence().catch(console.error);
+    void pruneResolvedQueueEntries().catch(console.error);
+  };
+  const sweep = setInterval(runSweep, 3600_000);
+  runSweep();
 
   httpServer.listen(env.PORT, () => {
     console.log(`[server] LinguaMatch API listening on port ${env.PORT}`);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useClerk, useUser } from "@clerk/nextjs";
 import { CEFR_LEVELS, NATIVE_LANGUAGES, TARGET_LANGUAGES, languageName, type UserDTO } from "@linguamatch/shared";
 import { Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -9,6 +10,7 @@ import { FullPageSpinner, PageShell } from "@/components/site/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
@@ -17,7 +19,10 @@ import { useAuth, useRequireUser } from "@/lib/auth";
 
 export default function SettingsPage() {
   const user = useRequireUser({ onboarded: false });
-  const { setUser } = useAuth();
+  const { setUser, logout } = useAuth();
+  const { user: clerkUser } = useUser();
+  const { openUserProfile } = useClerk();
+  const email = clerkUser?.primaryEmailAddress?.emailAddress;
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [blocked, setBlocked] = useState<{ id: string; username: string }[]>([]);
@@ -55,13 +60,16 @@ export default function SettingsPage() {
             <CardDescription>Partners only ever see your username, native language and level.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <div className="text-muted-foreground text-xs">Username</div>
-              <div className="font-medium">{user.username}</div>
-            </div>
+            <UsernameField
+              username={user.username}
+              onSave={(username) => save(() => api.updateSettings({ username }))}
+            />
             <div>
               <div className="text-muted-foreground text-xs">Email (private)</div>
-              <div className="font-medium">{user.email}</div>
+              <div className="font-medium">{email ?? "—"}</div>
+              <button type="button" className="text-primary mt-1 text-xs hover:underline" onClick={() => openUserProfile()}>
+                Manage sign-in & security
+              </button>
             </div>
             <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="native">Native language</Label>
@@ -203,7 +211,7 @@ export default function SettingsPage() {
         <Card className="border-destructive/30">
           <CardHeader>
             <CardTitle>Delete account</CardTitle>
-            <CardDescription>Permanently deletes your account, reports, assessments and any stored transcripts.</CardDescription>
+            <CardDescription>Permanently deletes your account, feedback reports and any stored transcripts.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
@@ -226,8 +234,14 @@ export default function SettingsPage() {
             <Button
               variant="destructive"
               onClick={async () => {
-                await api.deleteAccount();
-                setUser(null);
+                try {
+                  await api.deleteAccount();
+                } catch (err) {
+                  setConfirmDelete(false);
+                  setError((err as Error).message);
+                  return;
+                }
+                await logout();
                 router.push("/");
               }}
             >
@@ -237,6 +251,41 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
     </PageShell>
+  );
+}
+
+function UsernameField({ username, onSave }: { username: string; onSave: (username: string) => Promise<void> }) {
+  const [value, setValue] = useState(username);
+  useEffect(() => setValue(username), [username]);
+  const changed = value.trim() !== username;
+  return (
+    <form
+      className="grid gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (changed) void onSave(value.trim());
+      }}
+    >
+      <Label htmlFor="username" className="text-muted-foreground text-xs font-normal">
+        Username (public)
+      </Label>
+      <div className="flex gap-2">
+        <Input
+          id="username"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          minLength={3}
+          maxLength={24}
+          pattern="[A-Za-z0-9_]+"
+          required
+        />
+        {changed && (
+          <Button type="submit" size="sm" variant="outline">
+            Save
+          </Button>
+        )}
+      </div>
+    </form>
   );
 }
 

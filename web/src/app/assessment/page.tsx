@@ -29,7 +29,7 @@ function Assessment() {
   const router = useRouter();
   const params = useSearchParams();
   const [language, setLanguage] = useState(params.get("language") ?? "");
-  const [assessment, setAssessment] = useState<{ id: string; questions: AssessmentQuestion[] } | null>(null);
+  const [assessment, setAssessment] = useState<{ targetLanguage: string; questions: AssessmentQuestion[] } | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [busy, setBusy] = useState<null | "start" | "submit" | "apply">(null);
@@ -86,7 +86,7 @@ function Assessment() {
               onClick={() =>
                 run("start", async () => {
                   const a = await api.startAssessment(lang);
-                  setAssessment({ id: a.id, questions: a.questions });
+                  setAssessment({ targetLanguage: a.targetLanguage, questions: a.questions });
                 })
               }
             >
@@ -124,7 +124,7 @@ function Assessment() {
             onClick={() =>
               run("submit", async () => {
                 const payload = assessment.questions.map((q) => ({ questionId: q.id, answer: answers[q.id] ?? "" }));
-                setResult((await api.submitAssessment(assessment.id, payload)).result);
+                setResult((await api.submitAssessment({ ...assessment, answers: payload })).result);
               })
             }
           >
@@ -153,7 +153,7 @@ function Assessment() {
                 disabled={busy !== null}
                 onClick={() =>
                   run("apply", async () => {
-                    setUser((await api.applyAssessment(assessment.id)).user);
+                    setUser((await api.applyAssessment(assessment.targetLanguage, result.level)).user);
                     router.push("/match");
                   })
                 }

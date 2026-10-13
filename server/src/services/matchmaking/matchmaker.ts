@@ -1,30 +1,37 @@
-import type { CefrLevel } from "@linguamatch/shared";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { env } from "../../config/env";
-import { MatchQueue } from "../../models/MatchQueue";
-import { User, activeLanguageProfile, isOnboarded, isSuspended } from "../../models/User";
+import { db } from "../../db/client";
+import { queue, recentPartners } from "../../db/schema";
+import { activeLanguageProfile, findUserById, isOnboarded } from "../../models/User";
 import { getIO, userRoom } from "../../socket/io";
+import { blockedUserIds, findActiveBan } from "../moderation/moderationService";
 import { DEFAULT_MATCH_OPTIONS, findMatches, type MatchOptions, type MatchPair, type QueueEntry } from "./algorithm";
 
 interface LiveEntry extends QueueEntry {
-  queueDocId: string;
-}
-
-/** Public, read-only view of a queued user for the admin dashboard. */
-export interface LiveQueueEntry {
-  userId: string;
-  targetLanguage: string;
-  level: CefrLevel;
-  joinedAt: number;
+  queueRowId: number;
 }
 
 export class QueueError extends Error {}
 
 type MatchHandler = (pair: MatchPair) => Promise<string>;
 
+const RESOLVED_ENTRY_RETENTION_MS = 7 * 24 * 3600 * 1000;
+const RECENT_PARTNERS_LOADED = 10;
+
+/** Keeps finished queue entries for a week for debugging matchmaking, then drops them. */
+export async function pruneResolvedQueueEntries(): Promise<void> {
+  await db.delete(queue).where(lt(queue.resolvedAt, new Date(Date.now() - RESOLVED_ENTRY_RETENTION_MS)));
+}
+
+/** The live queue is in memory, so rows still "waiting" from a previous process are stale. */
+export async function expireStaleQueueEntries(): Promise<void> {
+  await db.update(queue).set({ status: "expired", resolvedAt: new Date() }).where(eq(queue.status, "waiting"));
+}
+
 /**
  * In-memory matchmaking queue for a single server process. Each entry is mirrored to the
- * MatchQueue collection. To scale horizontally, move `entries` into Redis and run `tick`
- * on one leader instance.
+ * queue table. To scale horizontally, move `entries` into Redis and run `tick` on one
+ * leader instance.
  */
 export class Matchmaker {
   private entries = new Map<string, LiveEntry>();
@@ -55,10 +62,10 @@ export class Matchmaker {
   }
 
   async join(userId: string, socketId: string, targetLanguage: string): Promise<LiveEntry> {
-    const user = await User.findById(userId);
-    if (!user) throw new QueueError("Account not found");
+    const user = await findUserById(userId);
+    if (!user || user.deletedAt) throw new QueueError("Account not found");
     if (!isOnboarded(user)) throw new QueueError("Finish setting up your languages first");
-    if (isSuspended(user)) throw new QueueError("Your account is temporarily suspended from matching");
+    if (await findActiveBan(userId)) throw new QueueError("Your account is temporarily suspended from matching");
 
     const profile = activeLanguageProfile(user, targetLanguage);
     if (!profile) throw new QueueError("Add this language to your profile before practicing it");
@@ -66,25 +73,30 @@ export class Matchmaker {
     // Re-joining (e.g. a second tab) replaces the previous entry.
     await this.leave(userId, "cancelled");
 
-    const blockedBy = await User.find({ blockedUsers: user._id }).select("_id").lean();
-    const doc = await MatchQueue.create({
-      userId: user._id,
-      nativeLanguage: user.nativeLanguage,
-      targetLanguage,
-      level: profile.level,
-      status: "waiting",
-    });
+    const [blocked, recent] = await Promise.all([
+      blockedUserIds(userId),
+      db
+        .select({ partnerId: recentPartners.partnerId })
+        .from(recentPartners)
+        .where(eq(recentPartners.userId, userId))
+        .orderBy(desc(recentPartners.metAt))
+        .limit(RECENT_PARTNERS_LOADED),
+    ]);
+    const [row] = await db
+      .insert(queue)
+      .values({ userId, nativeLanguage: user.nativeLang, lang: targetLanguage, level: profile.level })
+      .returning({ id: queue.id });
 
     const entry: LiveEntry = {
-      queueDocId: doc._id.toString(),
+      queueRowId: row!.id,
       userId,
       socketId,
-      nativeLanguage: user.nativeLanguage ?? null,
+      nativeLanguage: user.nativeLang,
       targetLanguage,
-      level: profile.level as CefrLevel,
+      level: profile.level,
       joinedAt: Date.now(),
-      blocked: new Set([...user.blockedUsers.map(String), ...blockedBy.map((b) => String(b._id))]),
-      recentPartners: user.recentPartners.map(String),
+      blocked,
+      recentPartners: recent.map((r) => r.partnerId),
     };
     this.entries.set(userId, entry);
     this.broadcastStatus(targetLanguage);
@@ -96,7 +108,10 @@ export class Matchmaker {
     const entry = this.entries.get(userId);
     if (!entry) return;
     this.entries.delete(userId);
-    await MatchQueue.updateOne({ _id: entry.queueDocId, status: "waiting" }, { status, resolvedAt: new Date() });
+    await db
+      .update(queue)
+      .set({ status, resolvedAt: new Date() })
+      .where(and(eq(queue.id, entry.queueRowId), eq(queue.status, "waiting")));
     this.broadcastStatus(entry.targetLanguage);
   }
 
@@ -104,20 +119,6 @@ export class Matchmaker {
     let n = 0;
     for (const e of this.entries.values()) if (e.targetLanguage === targetLanguage) n++;
     return n;
-  }
-
-  totalWaiting(): number {
-    return this.entries.size;
-  }
-
-  /** Read-only snapshot of who is waiting, for the admin dashboard (never mutates the queue). */
-  waitingEntries(): LiveQueueEntry[] {
-    return [...this.entries.values()].map((e) => ({
-      userId: e.userId,
-      targetLanguage: e.targetLanguage,
-      level: e.level,
-      joinedAt: e.joinedAt,
-    }));
   }
 
   private broadcastStatus(targetLanguage: string) {
@@ -142,15 +143,14 @@ export class Matchmaker {
         this.entries.delete(b.userId);
 
         try {
-          const conversationId = await this.onMatch(pair);
-          const resolved = { status: "matched", conversationId, levelDistance: pair.levelDistance, resolvedAt: new Date() };
-          await Promise.all([
-            MatchQueue.updateOne({ _id: a.queueDocId }, { ...resolved, matchedWith: b.userId }),
-            MatchQueue.updateOne({ _id: b.queueDocId }, { ...resolved, matchedWith: a.userId }),
-          ]);
+          const sessionId = await this.onMatch(pair);
+          await db
+            .update(queue)
+            .set({ status: "matched", sessionId, resolvedAt: new Date() })
+            .where(inArray(queue.id, [a.queueRowId, b.queueRowId]));
           const io = getIO();
-          io.to(userRoom(a.userId)).emit("queue:matched", { roomId: conversationId });
-          io.to(userRoom(b.userId)).emit("queue:matched", { roomId: conversationId });
+          io.to(userRoom(a.userId)).emit("queue:matched", { roomId: sessionId });
+          io.to(userRoom(b.userId)).emit("queue:matched", { roomId: sessionId });
         } catch (err) {
           console.error("[match] Failed to create room, requeueing both users:", err);
           this.entries.set(a.userId, a);
