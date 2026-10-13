@@ -1,9 +1,9 @@
-import cookieParser from "cookie-parser";
+import { clerkMiddleware } from "@clerk/express";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { createServer } from "node:http";
-import { allowedOrigins, env, isAllowedOrigin } from "./config/env";
+import { allowedOrigins, clerkAuthorizedParties, env, isAllowedOrigin } from "./config/env";
 import { connectDatabase, disconnectDatabase } from "./db/connect";
 import { assessmentRouter } from "./routes/assessment";
 import { authRouter } from "./routes/auth";
@@ -11,6 +11,8 @@ import { conversationsRouter } from "./routes/conversations";
 import { usersRouter } from "./routes/users";
 import { isAIConfigured } from "./services/ai";
 import { purgeStaleTranscripts } from "./services/feedback/feedbackService";
+import { expireStaleQueueEntries, pruneResolvedQueueEntries } from "./services/matchmaking/matchmaker";
+import { endStaleSessions } from "./services/rooms/roomService";
 import { SPEECH_MODE, pronunciationCapability } from "./services/speech";
 import { createSocketServer } from "./socket";
 import { logAuthFailure } from "./utils/auth";
@@ -18,6 +20,7 @@ import { errorHandler } from "./utils/http";
 
 async function main() {
   await connectDatabase();
+  await Promise.all([expireStaleQueueEntries(), endStaleSessions()]);
 
   const app = express();
   app.set("trust proxy", 1);
@@ -36,7 +39,8 @@ async function main() {
     res.status(403).json({ error: "Origin not allowed" });
   });
   app.use(express.json({ limit: "100kb" }));
-  app.use(cookieParser());
+  // Verifies the Clerk session token (Bearer header) and rejects tokens minted for other sites.
+  app.use(clerkMiddleware({ authorizedParties: clerkAuthorizedParties }));
 
   app.get("/api/health", (_req, res) => {
     res.json({
@@ -57,8 +61,12 @@ async function main() {
   const httpServer = createServer(app);
   const io = createSocketServer(httpServer);
 
-  const sweep = setInterval(() => void purgeStaleTranscripts().catch(console.error), 3600_000);
-  void purgeStaleTranscripts().catch(console.error);
+  const runSweep = () => {
+    void purgeStaleTranscripts().catch(console.error);
+    void pruneResolvedQueueEntries().catch(console.error);
+  };
+  const sweep = setInterval(runSweep, 3600_000);
+  runSweep();
 
   httpServer.listen(env.PORT, () => {
     console.log(`[server] LinguaMatch API listening on port ${env.PORT}`);

@@ -18,7 +18,6 @@ export interface PrivacySettings {
 export interface UserDTO {
   id: string;
   username: string;
-  email: string;
   nativeLanguage: string | null;
   targetLanguages: LanguageProfile[];
   activeTargetLanguage: string | null;

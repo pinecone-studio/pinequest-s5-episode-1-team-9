@@ -1,14 +1,9 @@
-import {
-  lowerLevel,
-  type CefrLevel,
-  type RoomEndReason,
-  type SignalPayload,
-  type Topic,
-  type TranscriptSegmentInput,
-} from "@linguamatch/shared";
+import { lowerLevel, type RoomEndReason, type SignalPayload, type Topic, type TranscriptSegmentInput } from "@linguamatch/shared";
+import { and, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { iceServers } from "../../config/env";
-import { Conversation, conversationDurationSeconds, type ConversationDoc } from "../../models/Conversation";
-import { User } from "../../models/User";
+import { db, isUuid } from "../../db/client";
+import { recentPartners, sessions, transcriptLines, users } from "../../db/schema";
+import { findSession, involvesUser, participantOf, participantsOf, type Session } from "../../models/Session";
 import { conversationRoom, getIO, userRoom, type AppSocket } from "../../socket/io";
 import { generateConversationFeedback } from "../feedback/feedbackService";
 import type { MatchPair } from "../matchmaking/algorithm";
@@ -19,7 +14,8 @@ const RECONNECT_GRACE_MS = 20_000;
 const JOIN_TIMEOUT_MS = 45_000;
 const TOPIC_COOLDOWN_MS = 2_000;
 const MIN_SEGMENT_INTERVAL_MS = 250;
-const MAX_SEGMENTS_PER_CONVERSATION = 3000;
+const MAX_SEGMENTS_PER_SESSION = 3000;
+const OPEN_STATUSES = ["pending", "active"] as const;
 
 interface RoomState {
   sockets: Map<string, string>;
@@ -34,8 +30,8 @@ interface RoomState {
 
 const rooms = new Map<string, RoomState>();
 
-function roomState(conversationId: string): RoomState {
-  let state = rooms.get(conversationId);
+function roomState(sessionId: string): RoomState {
+  let state = rooms.get(sessionId);
   if (!state) {
     state = {
       sockets: new Map(),
@@ -46,7 +42,7 @@ function roomState(conversationId: string): RoomState {
       segmentCount: 0,
       lastSegmentAt: new Map(),
     };
-    rooms.set(conversationId, state);
+    rooms.set(sessionId, state);
   }
   return state;
 }
@@ -57,98 +53,136 @@ function clearTimer(state: RoomState, key: string) {
   state.timers.delete(key);
 }
 
-async function loadActiveConversationFor(conversationId: string, userId: string): Promise<ConversationDoc | null> {
-  if (!/^[a-f0-9]{24}$/i.test(conversationId)) return null;
-  const c = await Conversation.findById(conversationId);
-  if (!c || c.status !== "active") return null;
-  return c.participants.some((p) => p.userId.toString() === userId) ? c : null;
+const isOpen = (s: Session) => s.status === "pending" || s.status === "active";
+
+/** Rooms live in memory, so sessions left open by a previous process can never finish. */
+export async function endStaleSessions(): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ status: "ended", endedAt: new Date(), endReason: "disconnected" })
+    .where(inArray(sessions.status, [...OPEN_STATUSES]));
 }
 
-export async function createConversationFromMatch(pair: MatchPair): Promise<string> {
-  const users = await User.find({ _id: { $in: [pair.a.userId, pair.b.userId] } });
-  const byId = new Map(users.map((u) => [u._id.toString(), u]));
-  const participants = [pair.a, pair.b].map((entry) => {
-    const u = byId.get(entry.userId);
-    if (!u) throw new Error(`User ${entry.userId} disappeared during matching`);
-    return {
-      userId: u._id,
-      displayName: u.username,
-      nativeLanguage: u.nativeLanguage,
-      level: entry.level,
-      transcriptionConsent: Boolean(u.privacy?.transcriptionConsent),
-    };
+export async function createSessionFromMatch(pair: MatchPair): Promise<string> {
+  const matched = await db
+    .select({ id: users.id, transcriptionConsent: users.transcriptionConsent })
+    .from(users)
+    .where(inArray(users.id, [pair.a.userId, pair.b.userId]));
+  const consent = new Map(matched.map((u) => [u.id, u.transcriptionConsent]));
+  if (consent.size !== 2) throw new Error("A matched user disappeared during matching");
+
+  const id = await db.transaction(async (tx) => {
+    const [session] = await tx
+      .insert(sessions)
+      .values({
+        userAId: pair.a.userId,
+        userBId: pair.b.userId,
+        targetLanguage: pair.a.targetLanguage,
+        userALevel: pair.a.level,
+        userBLevel: pair.b.level,
+        matchingMode: pair.levelDistance === 0 ? "exact_level" : "flexible_level",
+        levelDistance: pair.levelDistance,
+        userATranscriptionConsent: consent.get(pair.a.userId)!,
+        userBTranscriptionConsent: consent.get(pair.b.userId)!,
+      })
+      .returning({ id: sessions.id });
+    const now = new Date();
+    await tx
+      .insert(recentPartners)
+      .values([
+        { userId: pair.a.userId, partnerId: pair.b.userId, lastSessionId: session!.id, lastMatchedAt: now },
+        { userId: pair.b.userId, partnerId: pair.a.userId, lastSessionId: session!.id, lastMatchedAt: now },
+      ])
+      .onConflictDoUpdate({
+        target: [recentPartners.userId, recentPartners.partnerId],
+        set: {
+          lastSessionId: sql`excluded.last_session_id`,
+          lastMatchedAt: sql`excluded.last_matched_at`,
+          matchCount: sql`${recentPartners.matchCount} + 1`,
+        },
+      });
+    return session!.id;
   });
-
-  const conversation = await Conversation.create({ participants, targetLanguage: pair.a.targetLanguage, status: "active" });
-  const id = conversation._id.toString();
-
-  await Promise.all([
-    User.updateOne({ _id: pair.a.userId }, { $push: { recentPartners: { $each: [pair.b.userId], $position: 0, $slice: 10 } } }),
-    User.updateOne({ _id: pair.b.userId }, { $push: { recentPartners: { $each: [pair.a.userId], $position: 0, $slice: 10 } } }),
-  ]);
 
   const state = roomState(id);
   // If someone never shows up in the room (closed the tab mid-match), don't leave the other hanging.
   state.timers.set(
     "join",
     setTimeout(() => {
-      const absent = participants.find((p) => !state.sockets.has(p.userId.toString()));
-      void endConversation(id, absent?.userId.toString() ?? null, "partner_left");
+      const absent = [pair.a.userId, pair.b.userId].find((uid) => !state.sockets.has(uid));
+      void endSession(id, absent ?? null, "partner_left");
     }, JOIN_TIMEOUT_MS),
   );
   void generateTopic(id);
   return id;
 }
 
-export async function joinRoom(socket: AppSocket, conversationId: string) {
+export async function joinRoom(socket: AppSocket, sessionId: string) {
   const userId = socket.data.userId;
-  const conversation = await loadActiveConversationFor(conversationId, userId);
-  if (!conversation) {
+  let session = await findSession(sessionId);
+  if (!session || !isOpen(session) || !participantOf(session, userId)) {
     socket.emit("room:error", { message: "This conversation has ended or doesn't exist." });
     return;
   }
 
-  const state = roomState(conversationId);
+  const state = roomState(sessionId);
   clearTimer(state, `disconnect:${userId}`);
   state.sockets.set(userId, socket.id);
-  await socket.join(conversationRoom(conversationId));
+  await socket.join(conversationRoom(sessionId));
 
-  await Conversation.updateOne(
-    { _id: conversationId, "participants.userId": userId, "participants.joinedAt": null },
-    { $set: { "participants.$.joinedAt": new Date() } },
-  );
+  const isA = session.userAId === userId;
+  await db
+    .update(sessions)
+    .set(isA ? { userAJoinedAt: new Date() } : { userBJoinedAt: new Date() })
+    .where(and(eq(sessions.id, sessionId), isNull(isA ? sessions.userAJoinedAt : sessions.userBJoinedAt)));
 
-  const allPresent = conversation.participants.every((p) => state.sockets.has(p.userId.toString()));
-  if (!allPresent) {
+  const participants = participantsOf(session);
+  if (!participants.every((p) => state.sockets.has(p.userId))) {
     socket.emit("room:waiting-partner");
     return;
   }
   clearTimer(state, "join");
 
+  // Both are in the room: the conversation starts now (only the first time).
+  const [started] = await db
+    .update(sessions)
+    .set({ status: "active", startedAt: new Date() })
+    .where(and(eq(sessions.id, sessionId), eq(sessions.status, "pending")))
+    .returning();
+  session = started ?? (await findSession(sessionId));
+  if (!session || session.status !== "active") return;
+
+  const profiles = await db
+    .select({ id: users.id, username: users.username, nativeLanguage: users.nativeLanguage, deletedAt: users.deletedAt })
+    .from(users)
+    .where(inArray(users.id, [session.userAId, session.userBId]));
+  const profileOf = new Map(profiles.map((p) => [p.id, p]));
+
   // (Re)start the call for both sides. On a refresh this also resets the other peer's connection.
   const io = getIO();
-  const topic = latestTopic(conversation);
-  conversation.participants.forEach((p, index) => {
-    const partner = conversation.participants[1 - index]!;
-    const sid = state.sockets.get(p.userId.toString());
+  const topic = latestTopic(session);
+  participants.forEach((p, index) => {
+    const partner = participants[1 - index]!;
+    const partnerProfile = profileOf.get(partner.userId);
+    const sid = state.sockets.get(p.userId);
     if (!sid) return;
     io.to(sid).emit("room:ready", {
-      roomId: conversationId,
+      roomId: sessionId,
       role: index === 0 ? "caller" : "callee",
       partner: {
-        displayName: partner.displayName,
-        nativeLanguage: partner.nativeLanguage ?? null,
-        level: partner.level as CefrLevel,
+        displayName: !partnerProfile || partnerProfile.deletedAt ? "Deleted user" : partnerProfile.username,
+        nativeLanguage: partnerProfile?.nativeLanguage ?? null,
+        level: partner.level,
       },
-      targetLanguage: conversation.targetLanguage,
-      yourLevel: p.level as CefrLevel,
-      startedAt: conversation.startTime.toISOString(),
+      targetLanguage: session.targetLanguage,
+      yourLevel: p.level,
+      startedAt: session.startedAt!.toISOString(),
       topic,
       iceServers: iceServers(),
     });
   });
   // The first topic is generated at match time, before anyone is in the room, so replay its state.
-  io.to(conversationRoom(conversationId)).emit("topic:update", {
+  io.to(conversationRoom(sessionId)).emit("topic:update", {
     topic,
     loading: state.topicLoading,
     ...(state.topicError && { error: state.topicError }),
@@ -157,19 +191,19 @@ export async function joinRoom(socket: AppSocket, conversationId: string) {
 
 export function handleSocketDisconnect(socket: AppSocket) {
   const userId = socket.data.userId;
-  for (const [conversationId, state] of rooms) {
+  for (const [sessionId, state] of rooms) {
     if (state.sockets.get(userId) !== socket.id) continue;
     state.sockets.delete(userId);
-    socket.to(conversationRoom(conversationId)).emit("room:waiting-partner");
+    socket.to(conversationRoom(sessionId)).emit("room:waiting-partner");
     state.timers.set(
       `disconnect:${userId}`,
-      setTimeout(() => void endConversation(conversationId, userId, "disconnected"), RECONNECT_GRACE_MS),
+      setTimeout(() => void endSession(sessionId, userId, "disconnected"), RECONNECT_GRACE_MS),
     );
   }
 }
 
-export async function relaySignal(socket: AppSocket, conversationId: string, data: SignalPayload) {
-  const state = rooms.get(conversationId);
+export async function relaySignal(socket: AppSocket, sessionId: string, data: SignalPayload) {
+  const state = rooms.get(sessionId);
   const userId = socket.data.userId;
   if (!state || state.sockets.get(userId) !== socket.id) return;
   for (const [otherId, sid] of state.sockets) {
@@ -177,54 +211,50 @@ export async function relaySignal(socket: AppSocket, conversationId: string, dat
   }
 }
 
-export async function requestTopic(socket: AppSocket, conversationId: string) {
-  const state = rooms.get(conversationId);
+export async function requestTopic(socket: AppSocket, sessionId: string) {
+  const state = rooms.get(sessionId);
   if (!state || state.sockets.get(socket.data.userId) !== socket.id) return;
   if (state.topicLoading || Date.now() - state.lastTopicRequestAt < TOPIC_COOLDOWN_MS) return;
-  await generateTopic(conversationId);
+  await generateTopic(sessionId);
 }
 
-function latestTopic(c: ConversationDoc): Topic | null {
-  const t = c.topics.at(-1);
+function latestTopic(s: Pick<Session, "topics">): Topic | null {
+  const t = s.topics.at(-1);
   if (!t?.title) return null;
-  return { title: t.title, description: t.description ?? "", questions: t.questions ?? [], level: t.level as CefrLevel };
+  return { title: t.title, description: t.description, questions: t.questions, level: t.level };
 }
 
 /** Picks a random topic from the topic bank for the pair's level and sends it to the room. */
-async function generateTopic(conversationId: string) {
-  const state = roomState(conversationId);
+async function generateTopic(sessionId: string) {
+  const state = roomState(sessionId);
   const io = getIO();
-  const room = conversationRoom(conversationId);
+  const room = conversationRoom(sessionId);
   state.topicLoading = true;
   state.topicError = null;
   state.lastTopicRequestAt = Date.now();
 
   try {
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation || conversation.status !== "active") return;
+    const session = await findSession(sessionId);
+    if (!session || !isOpen(session)) return;
 
-    const [a, b] = conversation.participants;
-    const level = lowerLevel(a!.level as CefrLevel, b!.level as CefrLevel);
-    // Avoid repeating topics from this call and the pair's recent calls.
-    const recent = await Conversation.find({
-      _id: { $ne: conversation._id },
-      "participants.userId": { $in: conversation.participants.map((p) => p.userId) },
-    })
-      .sort({ startTime: -1 })
-      .limit(10)
-      .select("topics.title")
-      .lean();
-    const used = [
-      ...conversation.topics.map((t) => t.title ?? ""),
-      ...recent.flatMap((c) => c.topics.map((t) => t.title ?? "")),
-    ].filter(Boolean);
+    const level = lowerLevel(session.userALevel as Topic["level"], session.userBLevel as Topic["level"]);
+    // Avoid repeating topics from this call and either person's recent calls.
+    const recent = await db
+      .select({ topics: sessions.topics })
+      .from(sessions)
+      .where(and(ne(sessions.id, sessionId), or(involvesUser(session.userAId), involvesUser(session.userBId))))
+      .orderBy(desc(sessions.createdAt))
+      .limit(10);
+    const used = [...session.topics, ...recent.flatMap((s) => s.topics)].map((t) => t.title).filter(Boolean);
 
-    const topic = pickRandomTopic(level, used, latestTopic(conversation)?.title);
-    const updated = await Conversation.findOneAndUpdate(
-      { _id: conversationId, status: "active" },
-      { $push: { topics: { ...topic, createdAt: new Date() } } },
-    );
-    if (updated) io.to(room).emit("topic:update", { topic, loading: false });
+    const topic = pickRandomTopic(level, used, latestTopic(session)?.title);
+    const stored = { ...topic, shownAt: new Date().toISOString() };
+    const updated = await db
+      .update(sessions)
+      .set({ topics: sql`${sessions.topics} || ${JSON.stringify([stored])}::jsonb` })
+      .where(and(eq(sessions.id, sessionId), inArray(sessions.status, [...OPEN_STATUSES])))
+      .returning({ id: sessions.id });
+    if (updated.length) io.to(room).emit("topic:update", { topic, loading: false });
   } catch (err) {
     console.error("[topic] Couldn't pick a topic:", err);
     state.topicError = "Couldn't load a topic right now. Try again in a moment.";
@@ -238,59 +268,47 @@ export async function addTranscriptSegment(socket: AppSocket, input: TranscriptS
   const userId = socket.data.userId;
   const state = rooms.get(input.roomId);
   if (!state || state.sockets.get(userId) !== socket.id) return;
-  if (state.segmentCount >= MAX_SEGMENTS_PER_CONVERSATION) return;
+  if (state.segmentCount >= MAX_SEGMENTS_PER_SESSION) return;
   const now = Date.now();
   if (now - (state.lastSegmentAt.get(userId) ?? 0) < MIN_SEGMENT_INTERVAL_MS) return;
 
-  const conversation = await Conversation.findById(input.roomId).select("participants startTime status");
-  const participant = conversation?.participants.find((p) => p.userId.toString() === userId);
-  // Consent is snapshotted at match time; without it nothing is stored.
-  if (!conversation || conversation.status !== "active" || !participant?.transcriptionConsent) return;
+  const session = await findSession(input.roomId);
+  // Consent is snapshotted at match time; without it nothing is stored (the database enforces this too).
+  if (!session || session.status !== "active" || !session.startedAt || !participantOf(session, userId)?.transcriptionConsent) {
+    return;
+  }
 
-  const segment = sanitizeSegment(input, conversation.startTime, now);
+  const segment = sanitizeSegment(input, session.startedAt, now);
   if (!segment) return;
   state.lastSegmentAt.set(userId, now);
   state.segmentCount++;
-  await Conversation.updateOne(
-    { _id: input.roomId, status: "active" },
-    { $push: { transcript: { ...segment, userId: participant.userId } } },
-  );
+  await db.insert(transcriptLines).values({ ...segment, sessionId: session.id, speakerId: userId });
 }
 
-/** Ends a conversation exactly once, updates stats, notifies both users and starts feedback. */
-export async function endConversation(conversationId: string, byUserId: string | null, reason: RoomEndReason) {
-  const conversation = await Conversation.findOneAndUpdate(
-    { _id: conversationId, status: "active" },
-    { $set: { status: "ended", endTime: new Date(), endReason: reason, endedBy: byUserId } },
-    { new: true },
-  );
+/** Ends a session exactly once, notifies both users and starts feedback. */
+export async function endSession(sessionId: string, byUserId: string | null, reason: RoomEndReason) {
+  const [ended] = isUuid(sessionId)
+    ? await db
+        .update(sessions)
+        .set({ status: "ended", endedAt: new Date(), endReason: reason, endedBy: byUserId })
+        .where(and(eq(sessions.id, sessionId), inArray(sessions.status, [...OPEN_STATUSES])))
+        .returning()
+    : [];
 
-  const state = rooms.get(conversationId);
+  const state = rooms.get(sessionId);
   if (state) for (const key of [...state.timers.keys()]) clearTimer(state, key);
-  rooms.delete(conversationId);
-  if (!conversation) return;
+  rooms.delete(sessionId);
+  if (!ended) return;
 
-  const duration = conversationDurationSeconds(conversation);
-  const bothJoined = conversation.participants.every((p) => p.joinedAt);
   const io = getIO();
+  for (const p of participantsOf(ended)) {
+    io.to(userRoom(p.userId)).emit("room:ended", {
+      conversationId: sessionId,
+      reason,
+      byPartner: byUserId !== null && byUserId !== p.userId,
+    });
+  }
+  io.in(conversationRoom(sessionId)).socketsLeave(conversationRoom(sessionId));
 
-  await Promise.all(
-    conversation.participants.map(async (p) => {
-      const uid = p.userId.toString();
-      if (bothJoined) {
-        await User.updateOne(
-          { _id: p.userId },
-          { $inc: { "statistics.conversations": 1, "statistics.practiceSeconds": duration } },
-        );
-      }
-      io.to(userRoom(uid)).emit("room:ended", {
-        conversationId,
-        reason,
-        byPartner: byUserId !== null && byUserId !== uid,
-      });
-    }),
-  );
-  io.in(conversationRoom(conversationId)).socketsLeave(conversationRoom(conversationId));
-
-  if (bothJoined) void generateConversationFeedback(conversationId);
+  if (ended.startedAt) void generateConversationFeedback(sessionId);
 }

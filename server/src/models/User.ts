@@ -1,92 +1,95 @@
-import { CEFR_LEVELS, type UserDTO } from "@linguamatch/shared";
-import mongoose, { Schema, type HydratedDocument, type InferSchemaType, type Types } from "mongoose";
+import { clerkClient } from "@clerk/express";
+import type { CefrLevel, LanguageProfile, UserDTO } from "@linguamatch/shared";
+import { eq } from "drizzle-orm";
+import { db, isUniqueViolation, type DB } from "../db/client";
+import { users } from "../db/schema";
 
-const LanguageProfileSchema = new Schema(
-  {
-    language: { type: String, required: true },
-    level: { type: String, enum: CEFR_LEVELS, required: true },
-    levelSource: { type: String, enum: ["self", "assessment"], default: "self" },
-    estimatedPerformance: { type: String, default: null },
-  },
-  { _id: false },
-);
+export type User = typeof users.$inferSelect;
+export type UserPatch = Partial<Omit<typeof users.$inferInsert, "id" | "createdAt" | "updatedAt">>;
 
-const UserSchema = new Schema(
-  {
-    username: { type: String, required: true, unique: true, trim: true, minlength: 3, maxlength: 24 },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true, select: false },
+export const USERNAME_RE = /^[A-Za-z0-9_]{3,24}$/;
 
-    nativeLanguage: { type: String, default: null },
-    targetLanguages: { type: [LanguageProfileSchema], default: [] },
-    activeTargetLanguage: { type: String, default: null },
+export async function findUserById(id: string, tx: DB = db): Promise<User | null> {
+  const [user] = await tx.select().from(users).where(eq(users.id, id));
+  return user ?? null;
+}
 
-    statistics: {
-      conversations: { type: Number, default: 0 },
-      practiceSeconds: { type: Number, default: 0 },
-      scoredConversations: { type: Number, default: 0 },
-      scoreSum: { type: Number, default: 0 },
-    },
+export async function updateUser(id: string, patch: UserPatch): Promise<User> {
+  const [user] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
+  if (!user) throw new Error(`User ${id} not found`);
+  return user;
+}
 
-    privacy: {
-      transcriptionConsent: { type: Boolean, default: false },
-      retainTranscripts: { type: Boolean, default: false },
-    },
+/** A valid username derived from the Clerk profile. Partners see it, so the email domain is never used. */
+function usernameBase(clerkUser: { username: string | null; firstName: string | null; primaryEmailAddress?: { emailAddress: string } | null }) {
+  const candidates = [clerkUser.username, clerkUser.firstName, clerkUser.primaryEmailAddress?.emailAddress.split("@")[0]];
+  for (const raw of candidates) {
+    const cleaned = (raw ?? "").replace(/[^A-Za-z0-9_]/g, "").slice(0, 18);
+    if (cleaned.length >= 3) return cleaned;
+  }
+  return "learner";
+}
 
-    rulesAcceptedAt: { type: Date, default: null },
-    blockedUsers: { type: [{ type: Schema.Types.ObjectId, ref: "User" }], default: [] },
-    /** Most recent partners first; used to avoid repeated matches. */
-    recentPartners: { type: [{ type: Schema.Types.ObjectId, ref: "User" }], default: [] },
+/**
+ * Returns the app's row for a Clerk user, creating it on first sign-in. Clerk keeps the email and
+ * credentials; only the public username and learning settings live here.
+ */
+export async function findOrCreateUser(clerkUserId: string): Promise<User> {
+  const existing = await findUserById(clerkUserId);
+  if (existing) return existing;
 
-    moderation: {
-      status: { type: String, enum: ["active", "suspended", "banned"], default: "active" },
-      suspendedUntil: { type: Date, default: null },
-      reason: { type: String, default: null },
-    },
-  },
-  { timestamps: true },
-);
+  const base = usernameBase(await clerkClient.users.getUser(clerkUserId));
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const username = attempt === 0 ? base : `${base}_${Math.floor(1000 + Math.random() * 9000)}`;
+    try {
+      const [created] = await db.insert(users).values({ id: clerkUserId, username }).onConflictDoNothing({ target: users.id }).returning();
+      // Another request for the same new user won the race.
+      return created ?? (await findUserById(clerkUserId))!;
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+    }
+  }
+  throw new Error(`Couldn't find a free username for ${clerkUserId}`);
+}
 
-export type UserAttrs = InferSchemaType<typeof UserSchema>;
-export type UserDoc = HydratedDocument<UserAttrs>;
-export const User = mongoose.model("User", UserSchema);
+/** Sets the level for a language, adding it to the end of the list if it's new. */
+export function withLanguageLevel(
+  user: Pick<User, "targetLanguages">,
+  language: string,
+  level: CefrLevel,
+  levelSource: LanguageProfile["levelSource"],
+): LanguageProfile[] {
+  return user.targetLanguages.some((t) => t.language === language)
+    ? user.targetLanguages.map((t) => (t.language === language ? { ...t, level, levelSource } : t))
+    : [...user.targetLanguages, { language, level, levelSource, estimatedPerformance: null }];
+}
 
-export function isOnboarded(user: Pick<UserAttrs, "nativeLanguage" | "targetLanguages" | "activeTargetLanguage" | "rulesAcceptedAt">) {
+export function isOnboarded(user: Pick<User, "nativeLanguage" | "targetLanguages" | "activeTargetLanguage" | "rulesAcceptedAt">) {
   return Boolean(user.nativeLanguage && user.activeTargetLanguage && user.targetLanguages.length && user.rulesAcceptedAt);
 }
 
-export function activeLanguageProfile(user: Pick<UserAttrs, "targetLanguages" | "activeTargetLanguage">, language?: string) {
+export function activeLanguageProfile(user: Pick<User, "targetLanguages" | "activeTargetLanguage">, language?: string) {
   const code = language ?? user.activeTargetLanguage;
   return user.targetLanguages.find((t) => t.language === code) ?? null;
 }
 
-export function isSuspended(user: Pick<UserAttrs, "moderation">): boolean {
-  const m = user.moderation;
-  if (!m) return false;
-  if (m.status === "banned") return true;
-  return m.status === "suspended" && !!m.suspendedUntil && m.suspendedUntil.getTime() > Date.now();
-}
-
-export function toUserDTO(user: UserDoc): UserDTO {
+export function toUserDTO(user: User): UserDTO {
   return {
-    id: user._id.toString(),
+    id: user.id,
     username: user.username,
-    email: user.email,
-    nativeLanguage: user.nativeLanguage ?? null,
+    nativeLanguage: user.nativeLanguage,
     targetLanguages: user.targetLanguages.map((t) => ({
       language: t.language,
-      level: t.level as UserDTO["targetLanguages"][number]["level"],
-      levelSource: (t.levelSource ?? "self") as "self" | "assessment",
+      level: t.level,
+      levelSource: t.levelSource ?? "self",
       estimatedPerformance: t.estimatedPerformance ?? null,
     })),
-    activeTargetLanguage: user.activeTargetLanguage ?? null,
+    activeTargetLanguage: user.activeTargetLanguage,
     privacy: {
-      transcriptionConsent: user.privacy?.transcriptionConsent ?? false,
-      retainTranscripts: user.privacy?.retainTranscripts ?? false,
+      transcriptionConsent: user.transcriptionConsent,
+      retainTranscripts: user.retainTranscripts,
     },
     rulesAcceptedAt: user.rulesAcceptedAt?.toISOString() ?? null,
     onboarded: isOnboarded(user),
   };
 }
-
-export type UserId = Types.ObjectId;

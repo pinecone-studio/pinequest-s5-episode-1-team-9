@@ -20,8 +20,8 @@ const API_URL = (process.env.API_URL ?? "http://localhost:4000").trim().replace(
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@linguamatch/shared"],
-  // Proxy REST calls through this site's own domain so the refresh cookie is first-party
-  // (works in Incognito). Socket.IO connects directly to the API and authenticates with a token.
+  // Proxy REST calls through this site's own domain so they stay same-origin. Both REST and
+  // Socket.IO (which connects directly to the API) authenticate with a Clerk session token.
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${API_URL}/api/:path*` }];
   },

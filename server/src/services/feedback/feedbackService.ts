@@ -1,60 +1,61 @@
-import type { CefrLevel, FeedbackDTO, FluencyMetrics } from "@linguamatch/shared";
-import type { Types } from "mongoose";
-import { Conversation, conversationDurationSeconds, type ConversationDoc } from "../../models/Conversation";
-import { ConversationFeedback, type ConversationFeedbackDoc } from "../../models/ConversationFeedback";
-import { User } from "../../models/User";
+import type { FeedbackDTO, FluencyMetrics, Mistake } from "@linguamatch/shared";
+import { and, asc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { env } from "../../config/env";
+import { db } from "../../db/client";
+import { feedbackReports, mistakes, sessions, transcriptLines, users } from "../../db/schema";
+import { updateFeedback, type FeedbackReport, type FeedbackReportPatch } from "../../models/FeedbackReport";
+import { findSession, participantsOf, sessionDurationSeconds, type Participant, type Session } from "../../models/Session";
 import { AIResponseError, getAI, isAIConfigured } from "../ai";
 import { pronunciationCapability } from "../speech";
 import { computeFluencyMetrics, hasEnoughSpeech } from "./metrics";
 
 const inFlight = new Set<string>();
 
-/**
- * Creates one feedback document per participant and fills each in. Runs in the background
- * after a conversation ends; the feedback page polls until status leaves "pending".
- */
-export async function generateConversationFeedback(conversationId: string): Promise<void> {
-  if (inFlight.has(conversationId)) return;
-  inFlight.add(conversationId);
-  try {
-    const conversation = await Conversation.findById(conversationId).select("+transcript");
-    if (!conversation || conversation.status !== "ended") return;
+type Line = typeof transcriptLines.$inferSelect;
 
-    const results = await Promise.all(
-      conversation.participants.map((p) => generateForParticipant(conversation, p.userId)),
-    );
+/**
+ * Creates one feedback report per participant and fills each in. Runs in the background
+ * after a session ends; the feedback page polls until status leaves "pending".
+ */
+export async function generateConversationFeedback(sessionId: string): Promise<void> {
+  if (inFlight.has(sessionId)) return;
+  inFlight.add(sessionId);
+  try {
+    const session = await findSession(sessionId);
+    if (!session || session.status !== "ended" || !session.startedAt) return;
+    const transcript = await db
+      .select()
+      .from(transcriptLines)
+      .where(eq(transcriptLines.sessionId, sessionId))
+      .orderBy(transcriptLines.startedAt, transcriptLines.id);
+
+    const results = await Promise.all(participantsOf(session).map((p) => generateForParticipant(session, transcript, p)));
 
     // Transcripts exist only to produce feedback. Drop them once every report is settled,
     // unless every participant opted in to keeping them.
-    if (results.every((status) => status !== "failed")) await maybePurgeTranscript(conversation);
+    if (results.every((status) => status !== "failed")) await maybePurgeTranscript(session);
   } finally {
-    inFlight.delete(conversationId);
+    inFlight.delete(sessionId);
   }
 }
 
-async function generateForParticipant(conversation: ConversationDoc, userId: Types.ObjectId) {
-  const participant = conversation.participants.find((p) => p.userId.equals(userId))!;
-  const feedback = await ConversationFeedback.findOneAndUpdate(
-    { conversationId: conversation._id, userId },
-    {
-      $setOnInsert: {
-        conversationId: conversation._id,
-        userId,
-        targetLanguage: conversation.targetLanguage,
-        level: participant.level,
-        status: "pending",
-      },
-    },
-    { upsert: true, new: true },
-  );
+async function generateForParticipant(session: Session, transcript: Line[], participant: Participant) {
+  const { userId } = participant;
+  await db
+    .insert(feedbackReports)
+    .values({ sessionId: session.id, userId, targetLanguage: session.targetLanguage, level: participant.level })
+    .onConflictDoNothing();
+  const [feedback] = await db
+    .select()
+    .from(feedbackReports)
+    .where(and(eq(feedbackReports.sessionId, session.id), eq(feedbackReports.userId, userId)));
+  if (!feedback) throw new Error(`Feedback report for ${session.id}/${userId} is missing`);
   if (feedback.status === "ready" || feedback.status === "insufficient_data" || feedback.status === "no_consent") {
     return feedback.status;
   }
 
-  const finish = async (status: ConversationFeedbackDoc["status"], statusMessage: string | null) => {
-    feedback.status = status;
-    feedback.statusMessage = statusMessage;
-    await feedback.save();
+  const finish = async (status: FeedbackReport["status"], statusMessage: string | null, patch: FeedbackReportPatch = {}) => {
+    await updateFeedback(feedback.id, { ...patch, status, statusMessage });
     return status;
   };
 
@@ -65,74 +66,112 @@ async function generateForParticipant(conversation: ConversationDoc, userId: Typ
     );
   }
 
-  const segments = conversation.transcript.filter((s) => s.userId.equals(userId));
-  const metrics = computeFluencyMetrics(conversation.targetLanguage, segments);
-  feedback.metrics = metrics;
+  const lines = transcript.filter((s) => s.speakerId === userId);
+  const metrics = computeFluencyMetrics(session.targetLanguage, lines);
 
   if (!hasEnoughSpeech(metrics)) {
     return finish(
       "insufficient_data",
-      segments.length === 0
+      lines.length === 0
         ? "No speech was transcribed for you. Your browser may not support speech recognition, or the microphone was muted."
         : `Only ${metrics.wordCount} ${metrics.unit} were transcribed — not enough for a reliable report. Try a longer conversation.`,
+      { metrics },
     );
   }
 
   if (!isAIConfigured()) {
-    return finish("failed", "AI feedback is not configured on this server (missing ANTHROPIC_API_KEY).");
+    return finish("failed", "AI feedback is not configured on this server (missing ANTHROPIC_API_KEY).", { metrics });
   }
 
   try {
+    const [profile] = await db.select({ nativeLanguage: users.nativeLanguage }).from(users).where(eq(users.id, userId));
     const analysis = await getAI().analyzeConversation({
-      targetLanguage: conversation.targetLanguage,
-      nativeLanguage: participant.nativeLanguage ?? null,
-      level: participant.level as CefrLevel,
-      topics: conversation.topics.map((t) => t.title ?? "").filter(Boolean),
-      utterances: segments.map((s) => ({
+      targetLanguage: session.targetLanguage,
+      nativeLanguage: profile?.nativeLanguage ?? null,
+      level: participant.level,
+      topics: session.topics.map((t) => t.title).filter(Boolean),
+      utterances: lines.map((s) => ({
         text: s.text,
-        offsetSeconds: (s.startedAt.getTime() - conversation.startTime.getTime()) / 1000,
-        confidence: s.confidence ?? null,
+        offsetSeconds: (s.startedAt.getTime() - session.startedAt!.getTime()) / 1000,
+        confidence: s.confidence,
       })),
       metrics,
     });
 
-    const pronunciation = pronunciationCapability();
     const scores = [analysis.grammarScore, analysis.vocabularyScore, analysis.fluencyScore];
     const overall = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
 
-    feedback.set({
-      estimatedPerformance: analysis.estimatedPerformance,
-      grammarScore: analysis.grammarScore,
-      vocabularyScore: analysis.vocabularyScore,
-      fluencyScore: analysis.fluencyScore,
-      pronunciationScore: null,
-      pronunciationNote: pronunciationNote(pronunciation.note, metrics),
-      overallScore: overall,
-      summary: analysis.summary,
-      mistakes: analysis.mistakes,
-      corrections: analysis.mistakes.map(({ original, corrected }) => ({ original, corrected })),
-      vocabularySuggestions: analysis.vocabularySuggestions,
-      fluencyNotes: analysis.fluencyNotes,
-      strengths: analysis.strengths,
-      weaknesses: analysis.weaknesses,
-      exercises: analysis.exercises,
+    await db.transaction(async (tx) => {
+      await tx
+        .update(feedbackReports)
+        .set({
+          status: "ready",
+          statusMessage: null,
+          metrics,
+          estimatedPerformance: analysis.estimatedPerformance,
+          grammarScore: analysis.grammarScore,
+          vocabularyScore: analysis.vocabularyScore,
+          fluencyScore: analysis.fluencyScore,
+          pronunciationScore: null,
+          overallScore: overall,
+          summary: analysis.summary,
+          details: {
+            pronunciationNote: pronunciationNote(pronunciationCapability().note, metrics),
+            vocabularySuggestions: analysis.vocabularySuggestions,
+            fluencyNotes: analysis.fluencyNotes,
+            strengths: analysis.strengths,
+            weaknesses: analysis.weaknesses,
+            exercises: analysis.exercises,
+          },
+          aiModel: `${env.AI_PROVIDER}:${env.ANTHROPIC_MODEL}`,
+          generatedAt: new Date(),
+        })
+        .where(eq(feedbackReports.id, feedback.id));
+      // A retried report replaces the mistakes of the failed attempt.
+      await tx.delete(mistakes).where(and(eq(mistakes.sessionId, session.id), eq(mistakes.userId, userId)));
+      if (analysis.mistakes.length) {
+        await tx.insert(mistakes).values(
+          analysis.mistakes.map((m, position) => ({
+            sessionId: session.id,
+            userId,
+            transcriptLineId: lineContaining(lines, m.original)?.id ?? null,
+            category: m.category,
+            originalText: m.original,
+            correctedText: m.corrected,
+            explanation: m.explanation,
+            position,
+          })),
+        );
+      }
     });
-    await finish("ready", null);
 
-    await User.updateOne(
-      { _id: userId, "targetLanguages.language": conversation.targetLanguage },
-      {
-        $inc: { "statistics.scoredConversations": 1, "statistics.scoreSum": overall },
-        $set: { "targetLanguages.$.estimatedPerformance": analysis.estimatedPerformance },
-      },
-    );
+    const language = session.targetLanguage;
+    await db
+      .update(users)
+      .set({
+        targetLanguages: sql`(
+          select jsonb_agg(
+            case when e.elem->>'language' = ${language}
+              then e.elem || jsonb_build_object('estimatedPerformance', ${analysis.estimatedPerformance}::text)
+              else e.elem end
+            order by e.ord)
+          from jsonb_array_elements(${users.targetLanguages}) with ordinality as e(elem, ord)
+        )`,
+      })
+      .where(and(eq(users.id, userId), sql`${users.targetLanguages} @> ${JSON.stringify([{ language }])}::jsonb`));
     return "ready" as const;
   } catch (err) {
-    console.error(`[feedback] Analysis failed for conversation ${conversation._id}:`, err);
+    console.error(`[feedback] Analysis failed for session ${session.id}:`, err);
     const message =
       err instanceof AIResponseError ? err.message : "The AI service was unavailable. You can retry from this page.";
-    return finish("failed", message);
+    return finish("failed", message, { metrics });
   }
+}
+
+/** The utterance a quoted mistake came from, so it can be shown in context while the transcript exists. */
+function lineContaining(lines: Line[], quote: string): Line | undefined {
+  const needle = quote.trim().toLowerCase();
+  return needle ? lines.find((l) => l.text.toLowerCase().includes(needle)) : undefined;
 }
 
 function pronunciationNote(base: string, metrics: FluencyMetrics): string {
@@ -140,65 +179,71 @@ function pronunciationNote(base: string, metrics: FluencyMetrics): string {
   return `${base} The recognizer was unsure about ${metrics.lowConfidenceUtterances.length} of your phrases, which sometimes (not always) points to unclear pronunciation.`;
 }
 
-async function maybePurgeTranscript(conversation: ConversationDoc) {
-  const users = await User.find({ _id: { $in: conversation.participants.map((p) => p.userId) } }).select("privacy");
-  const everyoneRetains = users.length > 0 && users.every((u) => u.privacy?.retainTranscripts);
+async function maybePurgeTranscript(session: Session) {
+  const people = await db
+    .select({ retainTranscripts: users.retainTranscripts })
+    .from(users)
+    .where(inArray(users.id, [session.userAId, session.userBId]));
+  const everyoneRetains = people.length === 2 && people.every((u) => u.retainTranscripts);
   if (everyoneRetains) return;
-  await Conversation.updateOne({ _id: conversation._id }, { $set: { transcript: [], transcriptPurgedAt: new Date() } });
+  await db.transaction(async (tx) => {
+    await tx.delete(transcriptLines).where(eq(transcriptLines.sessionId, session.id));
+    await tx.update(sessions).set({ transcriptPurgedAt: new Date() }).where(eq(sessions.id, session.id));
+  });
 }
 
-/** Safety net: purge transcripts of conversations that ended over a day ago (e.g. failed feedback never retried). */
+/** Safety net: purge transcripts of sessions that ended over a day ago (e.g. failed feedback never retried). */
 export async function purgeStaleTranscripts(): Promise<void> {
   const cutoff = new Date(Date.now() - 24 * 3600 * 1000);
-  const stale = await Conversation.find({ status: "ended", endTime: { $lt: cutoff }, transcriptPurgedAt: null }).select(
-    "+transcript participants",
-  );
-  for (const c of stale) await maybePurgeTranscript(c);
+  const stale = await db
+    .select()
+    .from(sessions)
+    .where(and(eq(sessions.status, "ended"), lt(sessions.endedAt, cutoff), isNull(sessions.transcriptPurgedAt)));
+  for (const session of stale) await maybePurgeTranscript(session);
 }
 
-export async function toFeedbackDTO(feedback: ConversationFeedbackDoc): Promise<FeedbackDTO> {
-  const conversation = await Conversation.findById(feedback.conversationId).select("startTime endTime topics");
+export async function toFeedbackDTO(feedback: FeedbackReport): Promise<FeedbackDTO> {
+  const [[session], rows] = await Promise.all([
+    db
+      .select({ startedAt: sessions.startedAt, endedAt: sessions.endedAt, topics: sessions.topics, createdAt: sessions.createdAt })
+      .from(sessions)
+      .where(eq(sessions.id, feedback.sessionId)),
+    db
+      .select()
+      .from(mistakes)
+      .where(and(eq(mistakes.sessionId, feedback.sessionId), eq(mistakes.userId, feedback.userId)))
+      .orderBy(asc(mistakes.position)),
+  ]);
+  const details = feedback.details;
   return {
-    id: feedback._id.toString(),
-    conversationId: feedback.conversationId.toString(),
+    id: feedback.id,
+    conversationId: feedback.sessionId,
     status: feedback.status,
-    statusMessage: feedback.statusMessage ?? null,
+    statusMessage: feedback.statusMessage,
     targetLanguage: feedback.targetLanguage,
-    level: feedback.level as CefrLevel,
-    estimatedPerformance: feedback.estimatedPerformance ?? null,
-    grammarScore: feedback.grammarScore ?? null,
-    vocabularyScore: feedback.vocabularyScore ?? null,
-    fluencyScore: feedback.fluencyScore ?? null,
-    pronunciationScore: feedback.pronunciationScore ?? null,
-    pronunciationNote: feedback.pronunciationNote ?? null,
-    overallScore: feedback.overallScore ?? null,
-    summary: feedback.summary ?? null,
-    mistakes: feedback.mistakes.map((m) => ({
-      category: (m.category ?? "grammar") as FeedbackDTO["mistakes"][number]["category"],
-      original: m.original ?? "",
-      corrected: m.corrected ?? "",
-      explanation: m.explanation ?? "",
-    })),
-    vocabularySuggestions: feedback.vocabularySuggestions.map((v) => ({
-      original: v.original ?? "",
-      alternatives: v.alternatives ?? [],
-      note: v.note ?? "",
-    })),
-    fluencyNotes: feedback.fluencyNotes,
-    strengths: feedback.strengths,
-    weaknesses: feedback.weaknesses,
-    exercises: feedback.exercises.map((e) => ({
-      title: e.title ?? "",
-      instructions: e.instructions ?? "",
-      items: e.items ?? [],
-      answerKey: e.answerKey ?? [],
-    })),
-    metrics: (feedback.metrics as FluencyMetrics | null) ?? null,
+    level: feedback.level as FeedbackDTO["level"],
+    estimatedPerformance: feedback.estimatedPerformance,
+    grammarScore: feedback.grammarScore,
+    vocabularyScore: feedback.vocabularyScore,
+    fluencyScore: feedback.fluencyScore,
+    pronunciationScore: feedback.pronunciationScore,
+    pronunciationNote: details?.pronunciationNote ?? null,
+    overallScore: feedback.overallScore,
+    summary: feedback.summary,
+    mistakes: rows.map(
+      (m): Mistake => ({ category: m.category, original: m.originalText, corrected: m.correctedText, explanation: m.explanation }),
+    ),
+    vocabularySuggestions: details?.vocabularySuggestions ?? [],
+    fluencyNotes: details?.fluencyNotes ?? [],
+    strengths: details?.strengths ?? [],
+    weaknesses: details?.weaknesses ?? [],
+    exercises: details?.exercises ?? [],
+    metrics: feedback.metrics,
     conversation: {
-      startTime: conversation?.startTime.toISOString() ?? feedback.createdAt.toISOString(),
-      endTime: conversation?.endTime?.toISOString() ?? null,
-      durationSeconds: conversation ? conversationDurationSeconds(conversation) : 0,
-      topics: conversation?.topics.map((t) => t.title ?? "").filter(Boolean) ?? [],
+      startTime: (session?.startedAt ?? session?.createdAt ?? feedback.createdAt).toISOString(),
+      endTime: session?.endedAt?.toISOString() ?? null,
+      durationSeconds: session ? sessionDurationSeconds(session) : 0,
+      topics: session?.topics.map((t) => t.title).filter(Boolean) ?? [],
     },
     createdAt: feedback.createdAt.toISOString(),
   };
