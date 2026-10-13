@@ -70,6 +70,20 @@ export interface TranscriptSegmentInput {
   confidence: number | null;
 }
 
+/**
+ * A still frame sampled from the sender's own camera for real-time safety reviews. Frames are
+ * analyzed in memory and never stored; only the offending description ends up in a report.
+ */
+export interface FrameSampleInput {
+  roomId: string;
+  /** e.g. "image/jpeg". */
+  mimeType: string;
+  /** Base64-encoded JPEG/PNG data (no data: URL prefix). */
+  data: string;
+  /** Epoch ms when the frame was captured. */
+  capturedAt: number;
+}
+
 export type RoomEndReason = "ended" | "next" | "partner_left" | "disconnected" | "blocked" | "reported";
 
 export interface ClientToServerEvents {
@@ -80,6 +94,7 @@ export interface ClientToServerEvents {
   signal: (payload: { roomId: string; data: SignalPayload }) => void;
   "topic:request": (payload: { roomId: string }) => void;
   "transcript:segment": (payload: TranscriptSegmentInput) => void;
+  "frame:sample": (payload: FrameSampleInput) => void;
 }
 
 export interface ServerToClientEvents {

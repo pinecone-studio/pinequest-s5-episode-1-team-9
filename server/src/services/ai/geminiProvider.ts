@@ -6,11 +6,13 @@ import {
   ASSESSMENT_SYSTEM,
   MODERATION_SYSTEM,
   TOPIC_SYSTEM,
+  VIDEO_MODERATION_SYSTEM,
   analysisUserPrompt,
   assessmentEvalUserPrompt,
   assessmentUserPrompt,
   moderationUserPrompt,
   topicUserPrompt,
+  videoModerationUserPrompt,
 } from "./prompts";
 import {
   AssessmentQuestionsSchema,
@@ -102,15 +104,21 @@ export class GeminiProvider implements AIProvider {
     schema: S;
     effort: Effort;
     maxTokens: number;
+    images?: { mimeType: string; dataBase64: string; label?: string }[];
   }): Promise<z.infer<S>> {
     const responseSchema = toGeminiSchema(opts.schema);
     const models = [...new Set([this.model, ...GEMINI_FALLBACK_MODELS])];
+    const parts: Record<string, unknown>[] = [{ text: opts.user }];
+    for (const img of opts.images ?? []) {
+      if (img.label) parts.push({ text: img.label });
+      parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
+    }
 
     let lastError: AIResponseError | null = null;
     for (const [i, model] of models.entries()) {
       const body = {
         systemInstruction: { parts: [{ text: opts.system }] },
-        contents: [{ role: "user", parts: [{ text: opts.user }] }],
+        contents: [{ role: "user", parts }],
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema,
@@ -222,6 +230,22 @@ export class GeminiProvider implements AIProvider {
       schema: ModerationSchema,
       effort: "medium",
       maxTokens: 4000,
+    });
+    return { findings: out.findings.slice(0, 20) };
+  }
+
+  async moderateVideo(req: Parameters<AIProvider["moderateVideo"]>[0]) {
+    const out = await this.structured({
+      system: VIDEO_MODERATION_SYSTEM,
+      user: videoModerationUserPrompt(req),
+      schema: ModerationSchema,
+      effort: "medium",
+      maxTokens: 4000,
+      images: req.frames.map((f) => ({
+        mimeType: f.mimeType,
+        dataBase64: f.dataBase64,
+        label: `[Frame from speaker "${f.speaker}" at ${f.offsetSeconds.toFixed(1)}s]`,
+      })),
     });
     return { findings: out.findings.slice(0, 20) };
   }

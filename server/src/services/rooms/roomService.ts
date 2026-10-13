@@ -1,4 +1,4 @@
-import { lowerLevel, type RoomEndReason, type SignalPayload, type Topic, type TranscriptSegmentInput } from "@linguamatch/shared";
+import { lowerLevel, type FrameSampleInput, type RoomEndReason, type SignalPayload, type Topic, type TranscriptSegmentInput } from "@linguamatch/shared";
 import { and, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { iceServers } from "../../config/env";
 import { db, isUuid } from "../../db/client";
@@ -7,7 +7,7 @@ import { findSession, involvesUser, participantOf, participantsOf, type Session 
 import { conversationRoom, getIO, userRoom, type AppSocket } from "../../socket/io";
 import { generateConversationFeedback } from "../feedback/feedbackService";
 import type { MatchPair } from "../matchmaking/algorithm";
-import { clearModerationBuffer, recordForModeration } from "../moderation/aiModerationQueue";
+import { clearModerationBuffer, recordForModeration, recordFrameForModeration } from "../moderation/aiModerationQueue";
 import { sanitizeSegment } from "../speech";
 import { pickRandomTopic } from "../topics/topicBank";
 
@@ -16,6 +16,9 @@ const JOIN_TIMEOUT_MS = 45_000;
 const TOPIC_COOLDOWN_MS = 2_000;
 const MIN_SEGMENT_INTERVAL_MS = 250;
 const MAX_SEGMENTS_PER_SESSION = 3000;
+const MIN_FRAME_INTERVAL_MS = 5_000;
+const MAX_FRAME_CHARS = 60_000;
+const FRAME_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const OPEN_STATUSES = ["pending", "active"] as const;
 
 interface RoomState {
@@ -27,6 +30,7 @@ interface RoomState {
   lastTopicRequestAt: number;
   segmentCount: number;
   lastSegmentAt: Map<string, number>;
+  lastFrameAt: Map<string, number>;
 }
 
 const rooms = new Map<string, RoomState>();
@@ -42,6 +46,7 @@ function roomState(sessionId: string): RoomState {
       lastTopicRequestAt: 0,
       segmentCount: 0,
       lastSegmentAt: new Map(),
+      lastFrameAt: new Map(),
     };
     rooms.set(sessionId, state);
   }
@@ -293,6 +298,29 @@ export async function addTranscriptSegment(socket: AppSocket, input: TranscriptS
   });
   // Feed the real-time AI moderation window (in memory; the sweeper scans it periodically).
   recordForModeration(session.id, userId, segment.text, segment.startedAt);
+}
+
+/**
+ * Buffers one camera frame for real-time AI vision moderation. Frames are validated, throttled per
+ * user, kept only in memory until the next sweep, and never written to the database or any file.
+ */
+export async function addVideoFrame(socket: AppSocket, input: FrameSampleInput) {
+  const userId = socket.data.userId;
+  const state = rooms.get(input.roomId);
+  if (!state || state.sockets.get(userId) !== socket.id) return;
+  if (!FRAME_MIME_TYPES.includes(input.mimeType)) return;
+  if (typeof input.data !== "string" || input.data.length === 0 || input.data.length > MAX_FRAME_CHARS) return;
+  const now = Date.now();
+  if (now - (state.lastFrameAt.get(userId) ?? 0) < MIN_FRAME_INTERVAL_MS) return;
+
+  const session = await findSession(input.roomId);
+  // Consent is snapshotted at match time; without it no frame is even buffered.
+  if (!session || session.status !== "active" || !session.startedAt || !participantOf(session, userId)?.transcriptionConsent) {
+    return;
+  }
+
+  state.lastFrameAt.set(userId, now);
+  recordFrameForModeration(session.id, userId, input.mimeType, input.data, new Date(now));
 }
 
 /** Ends a session exactly once, notifies both users and starts feedback. */

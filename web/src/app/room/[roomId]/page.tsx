@@ -20,6 +20,7 @@ import { FullPageSpinner } from "@/components/site/header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useFrameSampler, type SampledFrame } from "@/hooks/useFrameSampler";
 import { useLocalMedia } from "@/hooks/useLocalMedia";
 import { useSpeechRecognition, type RecognizedSegment } from "@/hooks/useSpeechRecognition";
 import { useWebRTC } from "@/hooks/useWebRTC";
@@ -145,6 +146,17 @@ export default function RoomPage() {
     locale: speechLocale,
     enabled: consent && media.micOn && Boolean(info) && !ended,
     onSegment,
+  });
+
+  // Periodic camera-frame sampling on MY own feed, with consent, for real-time safety review.
+  const onFrame = useCallback(
+    (f: SampledFrame) => socket?.emit("frame:sample", { roomId, ...f }),
+    [socket, roomId],
+  );
+  useFrameSampler({
+    stream: media.stream,
+    enabled: consent && media.camOn && Boolean(info) && !ended,
+    onFrame,
   });
 
   const leave = (reason: "ended" | "next") => {

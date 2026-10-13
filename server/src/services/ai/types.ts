@@ -97,6 +97,23 @@ export interface ModerationResult {
   findings: ModerationFinding[];
 }
 
+export interface ModerationFrame {
+  /** "a" is the WebRTC caller (sessions.user_a), "b" the callee. */
+  speaker: "a" | "b";
+  /** e.g. "image/jpeg". */
+  mimeType: string;
+  /** Base64 image data without the data: URL prefix. */
+  dataBase64: string;
+  /** Seconds from conversation start. */
+  offsetSeconds: number;
+}
+
+export interface VideoModerationRequest {
+  targetLanguage: string;
+  /** Still frames sampled from each participant's own camera. */
+  frames: ModerationFrame[];
+}
+
 /**
  * Provider-agnostic AI interface. Swap the implementation in ./index.ts to change vendors;
  * nothing outside this folder imports a vendor SDK.
@@ -112,6 +129,8 @@ export interface AIProvider {
   analyzeConversation(req: ConversationAnalysisRequest): Promise<ConversationAnalysis>;
   /** Real-time safety check of the live transcript; returns only clear violations. */
   moderateConversation(req: ModerationRequest): Promise<ModerationResult>;
+  /** Real-time safety check of camera frames (vision); returns only clear violations. */
+  moderateVideo(req: VideoModerationRequest): Promise<ModerationResult>;
 }
 
 export class AIUnavailableError extends Error {

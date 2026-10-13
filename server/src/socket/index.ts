@@ -7,6 +7,7 @@ import { Matchmaker, QueueError } from "../services/matchmaking/matchmaker";
 import { findOrCreateUser } from "../models/User";
 import {
   addTranscriptSegment,
+  addVideoFrame,
   createSessionFromMatch,
   endSession,
   handleSocketDisconnect,
@@ -127,6 +128,13 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "transcript:segment",
       safe(socket, async (payload) => {
         if (isRoomId(payload?.roomId)) await addTranscriptSegment(socket, payload);
+      }),
+    );
+
+    socket.on(
+      "frame:sample",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await addVideoFrame(socket, payload);
       }),
     );
 

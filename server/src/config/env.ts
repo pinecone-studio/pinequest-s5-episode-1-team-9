@@ -55,6 +55,18 @@ const EnvSchema = z.object({
   /** Minimum model confidence required before acting on a finding. */
   AI_MODERATION_MIN_CONFIDENCE: z.enum(["low", "medium", "high"]).default("medium"),
 
+  /** Real-time AI vision review of camera frames. The browser samples its own camera (no media
+   *  server); frames are analyzed in memory and never stored. */
+  AI_MODERATION_VIDEO_ENABLED: z
+    .enum(["true", "false", "1", "0"])
+    .default("true")
+    .transform((v) => v === "true" || v === "1"),
+  /** Minimum sampled frames buffered since the last scan before a vision check runs. */
+  AI_MODERATION_VIDEO_MIN_FRAMES: z.coerce.number().int().min(1).default(1),
+  /** Vision findings must be at least this severe/confident; imagery false positives are costly. */
+  AI_MODERATION_VIDEO_MIN_SEVERITY: z.enum(["low", "medium", "high"]).default("medium"),
+  AI_MODERATION_VIDEO_MIN_CONFIDENCE: z.enum(["low", "medium", "high"]).default("high"),
+
   /**
    * Comma-separated emails that are promoted to admin at first sign-in (and on every auth
    * check until they have the role), so you can bootstrap the first administrator.

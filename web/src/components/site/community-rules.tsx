@@ -24,7 +24,9 @@ export function CommunityRules({ compact = false }: { compact?: boolean }) {
         ))}
       </ul>
       <p className="text-muted-foreground mt-3 text-xs">
-        You can end, skip, block or report anyone at any time. Reported users are reviewed and may be suspended.
+        You can end, skip, block or report anyone at any time. Reported users are reviewed and may be suspended. To keep
+        this space safe, with your consent our AI reviews your conversation&apos;s transcripts and, while your camera is
+        on, periodic still frames from your own camera; frames are analyzed in memory and never stored.
       </p>
     </div>
   );
