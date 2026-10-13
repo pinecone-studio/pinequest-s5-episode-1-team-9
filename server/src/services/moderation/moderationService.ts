@@ -36,7 +36,7 @@ export async function reportPartner(userId: string, sessionId: string, reason: R
   try {
     const [report] = await db
       .insert(reports)
-      .values({ reporterId: userId, reportedUserId: partnerId, sessionId, reason, details })
+      .values({ reporterId: userId, reportedId: partnerId, sessionId, reason, details })
       .returning({ id: reports.id });
     reportId = report!.id;
   } catch (err) {
@@ -60,7 +60,7 @@ export async function findActiveBan(userId: string) {
         eq(bans.userId, userId),
         isNull(bans.revokedAt),
         lte(bans.startsAt, now),
-        or(isNull(bans.expiresAt), gt(bans.expiresAt, now)),
+        or(isNull(bans.endsAt), gt(bans.endsAt, now)),
       ),
     )
     .orderBy(desc(bans.createdAt))
@@ -74,7 +74,7 @@ async function applyAutomaticModeration(userId: string, reportId: number) {
   const [row] = await db
     .select({ reporters: countDistinct(reports.reporterId) })
     .from(reports)
-    .where(and(eq(reports.reportedUserId, userId), gte(reports.createdAt, since)));
+    .where(and(eq(reports.reportedId, userId), gte(reports.createdAt, since)));
   const reporters = row?.reporters ?? 0;
   if (reporters < env.MODERATION_AUTO_SUSPEND_REPORTS) return;
   if (await findActiveBan(userId)) return;
@@ -83,7 +83,7 @@ async function applyAutomaticModeration(userId: string, reportId: number) {
     source: "automatic",
     reason: `Automatically suspended after ${reporters} reports in 24 hours, pending review`,
     reportId,
-    expiresAt: new Date(Date.now() + SUSPENSION_HOURS * 3600 * 1000),
+    endsAt: new Date(Date.now() + SUSPENSION_HOURS * 3600 * 1000),
   });
   console.warn(`[moderation] User ${userId} auto-suspended after ${reporters} reports`);
 }

@@ -21,8 +21,8 @@ export async function findSession(id: string, tx: DB = db): Promise<Session | nu
 
 export function participantsOf(s: Session): [Participant, Participant] {
   return [
-    { userId: s.userAId, level: s.userALevel as CefrLevel, transcriptionConsent: s.userATranscriptionConsent, joinedAt: s.userAJoinedAt },
-    { userId: s.userBId, level: s.userBLevel as CefrLevel, transcriptionConsent: s.userBTranscriptionConsent, joinedAt: s.userBJoinedAt },
+    { userId: s.userA, level: s.userALevel as CefrLevel, transcriptionConsent: s.userATranscriptionConsent, joinedAt: s.userAJoinedAt },
+    { userId: s.userB, level: s.userBLevel as CefrLevel, transcriptionConsent: s.userBTranscriptionConsent, joinedAt: s.userBJoinedAt },
   ];
 }
 
@@ -31,13 +31,13 @@ export function participantOf(s: Session, userId: string): Participant | null {
 }
 
 export function partnerIdOf(s: Session, userId: string): string | null {
-  if (s.userAId === userId) return s.userBId;
-  if (s.userBId === userId) return s.userAId;
+  if (s.userA === userId) return s.userB;
+  if (s.userB === userId) return s.userA;
   return null;
 }
 
 /** Sessions the user took part in, on either side. */
-export const involvesUser = (userId: string) => or(eq(sessions.userAId, userId), eq(sessions.userBId, userId));
+export const involvesUser = (userId: string) => or(eq(sessions.userA, userId), eq(sessions.userB, userId));
 
 /** Talk time: from the moment both people were in the room until the end. */
 export function sessionDurationSeconds(s: Pick<Session, "startedAt" | "endedAt">): number {

@@ -31,7 +31,7 @@ assessmentRouter.post("/", aiLimiter, async (req, res) => {
   try {
     const questions = await getAI().createAssessment({
       targetLanguage: body.targetLanguage,
-      nativeLanguage: user.nativeLanguage ?? null,
+      nativeLanguage: user.nativeLang ?? null,
       selfReportedLevel: user.targetLanguages.find((t) => t.language === body.targetLanguage)?.level ?? null,
     });
     res.status(201).json({ targetLanguage: body.targetLanguage, questions });
@@ -70,10 +70,10 @@ assessmentRouter.post("/submit", aiLimiter, async (req, res) => {
 assessmentRouter.post("/apply", async (req, res) => {
   const body = parseBody(z.object({ targetLanguage, level: z.enum(CEFR_LEVELS) }), req.body);
   const user = currentUser(req);
-  if (body.targetLanguage === user.nativeLanguage) throw new HttpError(400, "That's your native language");
+  if (body.targetLanguage === user.nativeLang) throw new HttpError(400, "That's your native language");
   const updated = await updateUser(user.id, {
     targetLanguages: withLanguageLevel(user, body.targetLanguage, body.level, "assessment"),
-    activeTargetLanguage: user.activeTargetLanguage ?? body.targetLanguage,
+    targetLang: user.targetLang ?? body.targetLanguage,
   });
   res.json({ user: toUserDTO(updated) });
 });

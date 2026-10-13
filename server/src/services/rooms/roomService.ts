@@ -75,9 +75,9 @@ export async function createSessionFromMatch(pair: MatchPair): Promise<string> {
     const [session] = await tx
       .insert(sessions)
       .values({
-        userAId: pair.a.userId,
-        userBId: pair.b.userId,
-        targetLanguage: pair.a.targetLanguage,
+        userA: pair.a.userId,
+        userB: pair.b.userId,
+        lang: pair.a.targetLanguage,
         userALevel: pair.a.level,
         userBLevel: pair.b.level,
         matchingMode: pair.levelDistance === 0 ? "exact_level" : "flexible_level",
@@ -90,14 +90,14 @@ export async function createSessionFromMatch(pair: MatchPair): Promise<string> {
     await tx
       .insert(recentPartners)
       .values([
-        { userId: pair.a.userId, partnerId: pair.b.userId, lastSessionId: session!.id, lastMatchedAt: now },
-        { userId: pair.b.userId, partnerId: pair.a.userId, lastSessionId: session!.id, lastMatchedAt: now },
+        { userId: pair.a.userId, partnerId: pair.b.userId, lastSessionId: session!.id, metAt: now },
+        { userId: pair.b.userId, partnerId: pair.a.userId, lastSessionId: session!.id, metAt: now },
       ])
       .onConflictDoUpdate({
         target: [recentPartners.userId, recentPartners.partnerId],
         set: {
           lastSessionId: sql`excluded.last_session_id`,
-          lastMatchedAt: sql`excluded.last_matched_at`,
+          metAt: sql`excluded.met_at`,
           matchCount: sql`${recentPartners.matchCount} + 1`,
         },
       });
@@ -130,7 +130,7 @@ export async function joinRoom(socket: AppSocket, sessionId: string) {
   state.sockets.set(userId, socket.id);
   await socket.join(conversationRoom(sessionId));
 
-  const isA = session.userAId === userId;
+  const isA = session.userA === userId;
   await db
     .update(sessions)
     .set(isA ? { userAJoinedAt: new Date() } : { userBJoinedAt: new Date() })
@@ -153,9 +153,9 @@ export async function joinRoom(socket: AppSocket, sessionId: string) {
   if (!session || session.status !== "active") return;
 
   const profiles = await db
-    .select({ id: users.id, username: users.username, nativeLanguage: users.nativeLanguage, deletedAt: users.deletedAt })
+    .select({ id: users.id, username: users.name, nativeLanguage: users.nativeLang, deletedAt: users.deletedAt })
     .from(users)
-    .where(inArray(users.id, [session.userAId, session.userBId]));
+    .where(inArray(users.id, [session.userA, session.userB]));
   const profileOf = new Map(profiles.map((p) => [p.id, p]));
 
   // (Re)start the call for both sides. On a refresh this also resets the other peer's connection.
@@ -174,7 +174,7 @@ export async function joinRoom(socket: AppSocket, sessionId: string) {
         nativeLanguage: partnerProfile?.nativeLanguage ?? null,
         level: partner.level,
       },
-      targetLanguage: session.targetLanguage,
+      targetLanguage: session.lang,
       yourLevel: p.level,
       startedAt: session.startedAt!.toISOString(),
       topic,
@@ -242,7 +242,7 @@ async function generateTopic(sessionId: string) {
     const recent = await db
       .select({ topics: sessions.topics })
       .from(sessions)
-      .where(and(ne(sessions.id, sessionId), or(involvesUser(session.userAId), involvesUser(session.userBId))))
+      .where(and(ne(sessions.id, sessionId), or(involvesUser(session.userA), involvesUser(session.userB))))
       .orderBy(desc(sessions.createdAt))
       .limit(10);
     const used = [...session.topics, ...recent.flatMap((s) => s.topics)].map((t) => t.title).filter(Boolean);
@@ -282,7 +282,14 @@ export async function addTranscriptSegment(socket: AppSocket, input: TranscriptS
   if (!segment) return;
   state.lastSegmentAt.set(userId, now);
   state.segmentCount++;
-  await db.insert(transcriptLines).values({ ...segment, sessionId: session.id, speakerId: userId });
+  await db.insert(transcriptLines).values({
+    sessionId: session.id,
+    userId,
+    text: segment.text,
+    spokenAt: segment.startedAt,
+    endedAt: segment.endedAt,
+    confidence: segment.confidence,
+  });
 }
 
 /** Ends a session exactly once, notifies both users and starts feedback. */

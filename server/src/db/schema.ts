@@ -29,6 +29,7 @@ import {
 
 export const USER_ROLES = ["user", "moderator", "admin"] as const;
 export const MATCHING_MODES = ["exact_level", "flexible_level"] as const;
+export const CALL_MODES = ["video", "voice"] as const;
 export const QUEUE_STATUSES = ["waiting", "matched", "cancelled", "expired"] as const;
 export const SESSION_STATUSES = ["pending", "active", "ended"] as const;
 export const SESSION_END_REASONS = ["ended", "next", "partner_left", "disconnected", "blocked", "reported"] as const;
@@ -61,16 +62,25 @@ const updatedAt = () =>
     .$onUpdate(() => new Date());
 const id = () => bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity();
 
-/** Clerk user id (`user_…`) is the primary key. Email and auth data stay in Clerk. */
+/** Clerk user id (`user_…`) is the primary key. Passwords and sessions stay in Clerk; email is a copy. */
 export const users = pgTable(
   "users",
   {
     id: text("id").primaryKey(),
-    username: text("username").notNull(),
+    /** Public username, the only name partners see. */
+    name: text("name").notNull(),
+    email: text("email"),
     role: text("role", { enum: USER_ROLES }).notNull().default("user"),
-    nativeLanguage: text("native_language"),
+    nativeLang: text("native_lang"),
     targetLanguages: jsonb("target_languages").$type<LanguageProfile[]>().notNull().default([]),
-    activeTargetLanguage: text("active_target_language"),
+    /** The language currently practiced; matching uses it and `level`. */
+    targetLang: text("target_lang"),
+    /** Level for `target_lang`, derived from `target_languages` so the two can't disagree. */
+    level: text("level").generatedAlwaysAs(
+      sql`jsonb_path_query_first(target_languages, '$[*] ? (@.language == $l).level', jsonb_object(ARRAY['l', target_lang])) #>> '{}'`,
+    ),
+    /** Confirmed 18+ together with the community rules. */
+    isAdult: boolean("is_adult").notNull().default(false),
     transcriptionConsent: boolean("transcription_consent").notNull().default(false),
     retainTranscripts: boolean("retain_transcripts").notNull().default(false),
     rulesAcceptedAt: tz("rules_accepted_at"),
@@ -80,10 +90,9 @@ export const users = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex("users_username_lower_key").on(sql`lower(${t.username})`),
+    uniqueIndex("users_name_lower_key").on(sql`lower(${t.name})`),
     check("users_id_not_blank", sql`length(${t.id}) > 0`),
-    check("users_username_format", sql`${t.username} ~ '^[A-Za-z0-9_]{3,24}$'`),
-    check("users_role_check", oneOf(t.role, USER_ROLES)),
+    check("users_name_format", sql`${t.name} ~ '^[A-Za-z0-9_]{3,24}$'`),    check("users_role_check", oneOf(t.role, USER_ROLES)),
     check("users_target_languages_is_array", sql`jsonb_typeof(${t.targetLanguages}) = 'array'`),
   ],
 );
@@ -92,14 +101,18 @@ export const sessions = pgTable(
   "sessions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /** Name of the call room; clients join it by the session id. */
+    roomName: text("room_name")
+      .notNull()
+      .generatedAlwaysAs(sql`'lm-' || id::text`),
     /** user_a is the WebRTC caller. */
-    userAId: text("user_a_id")
+    userA: text("user_a")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    userBId: text("user_b_id")
+    userB: text("user_b")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    targetLanguage: text("target_language").notNull(),
+    lang: text("lang").notNull(),
     userALevel: text("user_a_level").notNull(),
     userBLevel: text("user_b_level").notNull(),
     matchingMode: text("matching_mode", { enum: MATCHING_MODES }).notNull(),
@@ -123,7 +136,8 @@ export const sessions = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    check("sessions_distinct_users", sql`${t.userAId} <> ${t.userBId}`),
+    unique("sessions_room_name_key").on(t.roomName),
+    check("sessions_distinct_users", sql`${t.userA} <> ${t.userB}`),
     check("sessions_user_a_level_check", oneOf(t.userALevel, CEFR_LEVELS)),
     check("sessions_user_b_level_check", oneOf(t.userBLevel, CEFR_LEVELS)),
     check("sessions_matching_mode_check", oneOf(t.matchingMode, MATCHING_MODES)),
@@ -135,10 +149,10 @@ export const sessions = pgTable(
       sql`(${t.status} = 'ended') = (${t.endedAt} is not null and ${t.endReason} is not null)`,
     ),
     check("sessions_started_when_active", sql`${t.status} <> 'active' or ${t.startedAt} is not null`),
-    check("sessions_ended_by_participant", sql`${t.endedBy} is null or ${t.endedBy} in (${t.userAId}, ${t.userBId})`),
+    check("sessions_ended_by_participant", sql`${t.endedBy} is null or ${t.endedBy} in (${t.userA}, ${t.userB})`),
     check("sessions_topics_is_array", sql`jsonb_typeof(${t.topics}) = 'array'`),
-    index("sessions_user_a_created_idx").on(t.userAId, t.createdAt.desc()),
-    index("sessions_user_b_created_idx").on(t.userBId, t.createdAt.desc()),
+    index("sessions_user_a_created_idx").on(t.userA, t.createdAt.desc()),
+    index("sessions_user_b_created_idx").on(t.userB, t.createdAt.desc()),
     index("sessions_open_idx")
       .on(t.status)
       .where(sql`${t.status} in ('pending', 'active')`),
@@ -155,9 +169,10 @@ export const queue = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    targetLanguage: text("target_language").notNull(),
+    lang: text("lang").notNull(),
     level: text("level").notNull(),
     nativeLanguage: text("native_language"),
+    mode: text("mode", { enum: CALL_MODES }).notNull().default("video"),
     matchingMode: text("matching_mode", { enum: MATCHING_MODES }).notNull().default("flexible_level"),
     status: text("status", { enum: QUEUE_STATUSES }).notNull().default("waiting"),
     sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
@@ -170,12 +185,13 @@ export const queue = pgTable(
       .on(t.userId)
       .where(sql`${t.status} = 'waiting'`),
     check("queue_level_check", oneOf(t.level, CEFR_LEVELS)),
+    check("queue_mode_check", oneOf(t.mode, CALL_MODES)),
     check("queue_matching_mode_check", oneOf(t.matchingMode, MATCHING_MODES)),
     check("queue_status_check", oneOf(t.status, QUEUE_STATUSES)),
     check("queue_resolved_consistency", sql`(${t.status} = 'waiting') = (${t.resolvedAt} is null)`),
     check("queue_matched_has_session", sql`${t.status} <> 'matched' or ${t.sessionId} is not null`),
     index("queue_waiting_match_idx")
-      .on(t.targetLanguage, t.level, t.joinedAt)
+      .on(t.lang, t.level, t.joinedAt)
       .where(sql`${t.status} = 'waiting'`),
     index("queue_resolved_at_idx").on(t.resolvedAt),
   ],
@@ -192,14 +208,14 @@ export const recentPartners = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     lastSessionId: uuid("last_session_id").references(() => sessions.id, { onDelete: "set null" }),
-    lastMatchedAt: tz("last_matched_at").notNull().defaultNow(),
+    metAt: tz("met_at").notNull().defaultNow(),
     matchCount: bigint("match_count", { mode: "number" }).notNull().default(1),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.partnerId] }),
     check("recent_partners_not_self", sql`${t.userId} <> ${t.partnerId}`),
     check("recent_partners_match_count_positive", sql`${t.matchCount} > 0`),
-    index("recent_partners_user_recent_idx").on(t.userId, t.lastMatchedAt.desc()),
+    index("recent_partners_user_recent_idx").on(t.userId, t.metAt.desc()),
     index("recent_partners_partner_idx").on(t.partnerId),
   ],
 );
@@ -233,21 +249,23 @@ export const transcriptLines = pgTable(
     sessionId: uuid("session_id")
       .notNull()
       .references(() => sessions.id, { onDelete: "cascade" }),
-    speakerId: text("speaker_id")
+    /** The speaker. */
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     text: text("text").notNull(),
-    startedAt: tz("started_at").notNull(),
+    /** When the recognizer first heard the phrase. */
+    spokenAt: tz("spoken_at").notNull(),
     endedAt: tz("ended_at").notNull(),
     confidence: real("confidence"),
     createdAt: createdAt(),
   },
   (t) => [
     check("transcript_lines_text_length", sql`char_length(${t.text}) between 1 and 2000`),
-    check("transcript_lines_time_order", sql`${t.endedAt} >= ${t.startedAt}`),
+    check("transcript_lines_time_order", sql`${t.endedAt} >= ${t.spokenAt}`),
     check("transcript_lines_confidence_range", sql`${t.confidence} is null or (${t.confidence} > 0 and ${t.confidence} <= 1)`),
-    index("transcript_lines_session_speaker_idx").on(t.sessionId, t.speakerId, t.startedAt),
-    index("transcript_lines_speaker_idx").on(t.speakerId),
+    index("transcript_lines_session_user_idx").on(t.sessionId, t.userId, t.spokenAt),
+    index("transcript_lines_user_idx").on(t.userId),
   ],
 );
 
@@ -276,13 +294,13 @@ export const feedbackReports = pgTable(
     targetLanguage: text("target_language").notNull(),
     level: text("level").notNull(),
     estimatedPerformance: text("estimated_performance"),
-    grammarScore: smallint("grammar_score"),
-    vocabularyScore: smallint("vocabulary_score"),
-    fluencyScore: smallint("fluency_score"),
+    grammar: smallint("grammar"),
+    vocabulary: smallint("vocabulary"),
+    fluency: smallint("fluency"),
     pronunciationScore: smallint("pronunciation_score"),
     overallScore: smallint("overall_score"),
     summary: text("summary"),
-    details: jsonb("details").$type<FeedbackDetails>(),
+    summaryJson: jsonb("summary_json").$type<FeedbackDetails>(),
     metrics: jsonb("metrics").$type<FluencyMetrics>(),
     aiModel: text("ai_model"),
     generatedAt: tz("generated_at"),
@@ -295,15 +313,15 @@ export const feedbackReports = pgTable(
     check("feedback_reports_level_check", oneOf(t.level, CEFR_LEVELS)),
     check(
       "feedback_reports_scores_range",
-      sql`${t.grammarScore} between 0 and 100 and ${t.vocabularyScore} between 0 and 100
-        and ${t.fluencyScore} between 0 and 100 and ${t.pronunciationScore} between 0 and 100
+      sql`${t.grammar} between 0 and 100 and ${t.vocabulary} between 0 and 100
+        and ${t.fluency} between 0 and 100 and ${t.pronunciationScore} between 0 and 100
         and ${t.overallScore} between 0 and 100`,
     ),
     check(
       "feedback_reports_ready_complete",
-      sql`${t.status} <> 'ready' or (${t.overallScore} is not null and ${t.details} is not null and ${t.generatedAt} is not null)`,
+      sql`${t.status} <> 'ready' or (${t.overallScore} is not null and ${t.summaryJson} is not null and ${t.generatedAt} is not null)`,
     ),
-    check("feedback_reports_details_is_object", sql`${t.details} is null or jsonb_typeof(${t.details}) = 'object'`),
+    check("feedback_reports_summary_json_is_object", sql`${t.summaryJson} is null or jsonb_typeof(${t.summaryJson}) = 'object'`),
     check("feedback_reports_metrics_is_object", sql`${t.metrics} is null or jsonb_typeof(${t.metrics}) = 'object'`),
     index("feedback_reports_user_created_idx").on(t.userId, t.createdAt),
   ],
@@ -321,9 +339,9 @@ export const mistakes = pgTable(
       onDelete: "set null",
     }),
     category: text("category", { enum: MISTAKE_CATEGORIES }).notNull(),
-    originalText: text("original_text").notNull(),
-    correctedText: text("corrected_text").notNull(),
-    explanation: text("explanation").notNull().default(""),
+    original: text("original").notNull(),
+    fixed: text("fixed").notNull(),
+    reason: text("reason").notNull().default(""),
     position: smallint("position").notNull().default(0),
     createdAt: createdAt(),
   },
@@ -335,7 +353,7 @@ export const mistakes = pgTable(
       foreignColumns: [feedbackReports.sessionId, feedbackReports.userId],
     }).onDelete("cascade"),
     check("mistakes_category_check", oneOf(t.category, MISTAKE_CATEGORIES)),
-    check("mistakes_original_length", sql`char_length(${t.originalText}) between 1 and 2000`),
+    check("mistakes_original_length", sql`char_length(${t.original}) between 1 and 2000`),
     index("mistakes_session_user_idx").on(t.sessionId, t.userId, t.position),
     index("mistakes_user_category_idx").on(t.userId, t.category, t.createdAt),
     index("mistakes_transcript_line_idx").on(t.transcriptLineId),
@@ -349,7 +367,7 @@ export const reports = pgTable(
     reporterId: text("reporter_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    reportedUserId: text("reported_user_id")
+    reportedId: text("reported_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
     sessionId: uuid("session_id")
@@ -357,11 +375,10 @@ export const reports = pgTable(
       .references(() => sessions.id, { onDelete: "restrict" }),
     reason: text("reason").notNull(),
     details: text("details").notNull().default(""),
-    /** Private object-storage keys, served to moderators through short-lived signed URLs. */
-    evidenceKeys: text("evidence_keys")
-      .array()
-      .notNull()
-      .default(sql`'{}'::text[]`),
+    /** Set when automated (AI) moderation flags the report. */
+    aiFlag: boolean("ai_flag").notNull().default(false),
+    /** Evidence location in private storage; moderators get it through a short-lived signed URL. */
+    evidenceUrl: text("evidence_url"),
     status: text("status", { enum: REPORT_STATUSES }).notNull().default("open"),
     reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: "restrict" }),
     reviewedAt: tz("reviewed_at"),
@@ -371,16 +388,18 @@ export const reports = pgTable(
   },
   (t) => [
     unique("reports_reporter_session_key").on(t.reporterId, t.sessionId),
-    check("reports_not_self", sql`${t.reporterId} <> ${t.reportedUserId}`),
+    check("reports_not_self", sql`${t.reporterId} <> ${t.reportedId}`),
     check("reports_reason_check", oneOf(t.reason, REPORT_REASON_VALUES)),
     check("reports_status_check", oneOf(t.status, REPORT_STATUSES)),
     check("reports_details_length", sql`char_length(${t.details}) <= 1000`),
-    check("reports_evidence_limit", sql`cardinality(${t.evidenceKeys}) <= 10`),
     check(
       "reports_review_complete",
       sql`${t.status} not in ('actioned', 'dismissed') or (${t.reviewedBy} is not null and ${t.reviewedAt} is not null)`,
     ),
-    index("reports_reported_user_created_idx").on(t.reportedUserId, t.createdAt),
+    index("reports_reported_created_idx").on(t.reportedId, t.createdAt),
+    index("reports_ai_flag_idx")
+      .on(t.createdAt)
+      .where(sql`${t.aiFlag}`),
     index("reports_session_idx").on(t.sessionId),
     index("reports_open_queue_idx")
       .on(t.createdAt)
@@ -396,13 +415,15 @@ export const bans = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    /** Device fingerprint, so a banned person can't simply sign up again on the same device. */
+    deviceId: text("device_id"),
     source: text("source", { enum: BAN_SOURCES }).notNull(),
     reason: text("reason").notNull(),
     reportId: bigint("report_id", { mode: "number" }).references(() => reports.id, { onDelete: "restrict" }),
     createdBy: text("created_by").references(() => users.id, { onDelete: "restrict" }),
     startsAt: tz("starts_at").notNull().defaultNow(),
     /** Null means permanent. */
-    expiresAt: tz("expires_at"),
+    endsAt: tz("ends_at"),
     revokedAt: tz("revoked_at"),
     revokedBy: text("revoked_by").references(() => users.id, { onDelete: "restrict" }),
     revokeReason: text("revoke_reason"),
@@ -411,10 +432,13 @@ export const bans = pgTable(
   (t) => [
     check("bans_source_check", oneOf(t.source, BAN_SOURCES)),
     check("bans_moderator_has_author", sql`${t.source} <> 'moderator' or ${t.createdBy} is not null`),
-    check("bans_expiry_after_start", sql`${t.expiresAt} is null or ${t.expiresAt} > ${t.startsAt}`),
+    check("bans_expiry_after_start", sql`${t.endsAt} is null or ${t.endsAt} > ${t.startsAt}`),
     check("bans_revocation_complete", sql`(${t.revokedAt} is null) = (${t.revokedBy} is null)`),
     check("bans_reason_not_blank", sql`length(trim(${t.reason})) > 0`),
     index("bans_user_created_idx").on(t.userId, t.createdAt),
+    index("bans_device_idx")
+      .on(t.deviceId)
+      .where(sql`${t.deviceId} is not null`),
   ],
 );
 

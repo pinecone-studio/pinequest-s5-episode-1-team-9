@@ -6,10 +6,10 @@ import { involvesUser, sessionDurationSeconds } from "../../models/Session";
 import type { User } from "../../models/User";
 
 type TrendMetric = ProfileStats["languages"][number]["trend"][number]["metric"];
-const METRIC_FIELDS: [TrendMetric, "fluencyScore" | "grammarScore" | "vocabularyScore" | "overallScore"][] = [
-  ["fluency", "fluencyScore"],
-  ["grammar", "grammarScore"],
-  ["vocabulary", "vocabularyScore"],
+const METRIC_FIELDS: [TrendMetric, "fluency" | "grammar" | "vocabulary" | "overallScore"][] = [
+  ["fluency", "fluency"],
+  ["grammar", "grammar"],
+  ["vocabulary", "vocabulary"],
   ["overall", "overallScore"],
 ];
 
@@ -22,7 +22,7 @@ export async function buildProfileStats(user: User): Promise<ProfileStats> {
     db
       .select({
         id: sessions.id,
-        targetLanguage: sessions.targetLanguage,
+        targetLanguage: sessions.lang,
         startedAt: sessions.startedAt,
         endedAt: sessions.endedAt,
       })
@@ -58,8 +58,8 @@ export async function buildProfileStats(user: User): Promise<ProfileStats> {
   });
 
   return {
-    username: user.username,
-    nativeLanguage: user.nativeLanguage,
+    username: user.name,
+    nativeLanguage: user.nativeLang,
     memberSince: user.createdAt.toISOString(),
     totals: {
       conversations: completed.length,

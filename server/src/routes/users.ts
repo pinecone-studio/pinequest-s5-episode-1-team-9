@@ -48,10 +48,12 @@ usersRouter.post("/onboarding", async (req, res) => {
   }
   const user = currentUser(req);
   const updated = await saveUser(user.id, {
-    ...(body.username && { username: body.username }),
-    nativeLanguage: body.nativeLanguage,
+    ...(body.username && { name: body.username }),
+    nativeLang: body.nativeLanguage,
     targetLanguages: withLanguageLevel(user, body.targetLanguage, body.level, "self"),
-    activeTargetLanguage: body.targetLanguage,
+    targetLang: body.targetLanguage,
+    // The rules checkbox includes the 18+ confirmation.
+    isAdult: true,
     rulesAcceptedAt: user.rulesAcceptedAt ?? new Date(),
     transcriptionConsent: body.transcriptionConsent,
   });
@@ -71,13 +73,13 @@ usersRouter.patch("/settings", async (req, res) => {
   const body = parseBody(SettingsSchema, req.body);
   const user = currentUser(req);
   const patch: UserPatch = {};
-  if (body.username && body.username !== user.username) patch.username = body.username;
-  if (body.nativeLanguage) patch.nativeLanguage = body.nativeLanguage;
+  if (body.username && body.username !== user.name) patch.name = body.username;
+  if (body.nativeLanguage) patch.nativeLang = body.nativeLanguage;
   if (body.activeTargetLanguage) {
     if (!user.targetLanguages.some((t) => t.language === body.activeTargetLanguage)) {
       throw new HttpError(400, "Add that language first");
     }
-    patch.activeTargetLanguage = body.activeTargetLanguage;
+    patch.targetLang = body.activeTargetLanguage;
   }
   if (body.privacy?.transcriptionConsent !== undefined) patch.transcriptionConsent = body.privacy.transcriptionConsent;
   if (body.privacy?.retainTranscripts !== undefined) patch.retainTranscripts = body.privacy.retainTranscripts;
@@ -90,10 +92,10 @@ usersRouter.put("/languages/:code", async (req, res) => {
   if (!isTargetLanguage(code)) throw new HttpError(400, "Unsupported language");
   const { level } = parseBody(z.object({ level: z.enum(CEFR_LEVELS) }), req.body);
   const user = currentUser(req);
-  if (code === user.nativeLanguage) throw new HttpError(400, "That's your native language");
+  if (code === user.nativeLang) throw new HttpError(400, "That's your native language");
   const updated = await updateUser(user.id, {
     targetLanguages: withLanguageLevel(user, code, level, "self"),
-    activeTargetLanguage: user.activeTargetLanguage ?? code,
+    targetLang: user.targetLang ?? code,
   });
   res.json({ user: toUserDTO(updated) });
 });
@@ -104,8 +106,7 @@ usersRouter.delete("/languages/:code", async (req, res) => {
   const targetLanguages = user.targetLanguages.filter((t) => t.language !== req.params.code);
   const updated = await updateUser(user.id, {
     targetLanguages,
-    activeTargetLanguage:
-      user.activeTargetLanguage === req.params.code ? (targetLanguages[0]?.language ?? null) : user.activeTargetLanguage,
+    targetLang: user.targetLang === req.params.code ? (targetLanguages[0]?.language ?? null) : user.targetLang,
   });
   res.json({ user: toUserDTO(updated) });
 });
@@ -116,7 +117,7 @@ usersRouter.get("/profile", async (req, res) => {
 
 usersRouter.get("/blocked", async (req, res) => {
   const rows = await db
-    .select({ id: users.id, username: users.username, deletedAt: users.deletedAt })
+    .select({ id: users.id, username: users.name, deletedAt: users.deletedAt })
     .from(userBlocks)
     .innerJoin(users, eq(users.id, userBlocks.blockedId))
     .where(eq(userBlocks.blockerId, currentUser(req).id))
@@ -156,10 +157,11 @@ usersRouter.delete("/", async (req, res) => {
     await tx
       .update(users)
       .set({
-        username: `deleted_${randomBytes(6).toString("hex")}`,
-        nativeLanguage: null,
+        name: `deleted_${randomBytes(6).toString("hex")}`,
+        email: null,
+        nativeLang: null,
         targetLanguages: [],
-        activeTargetLanguage: null,
+        targetLang: null,
         transcriptionConsent: false,
         retainTranscripts: false,
         deletedAt: new Date(),

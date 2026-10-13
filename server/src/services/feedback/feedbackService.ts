@@ -27,7 +27,7 @@ export async function generateConversationFeedback(sessionId: string): Promise<v
       .select()
       .from(transcriptLines)
       .where(eq(transcriptLines.sessionId, sessionId))
-      .orderBy(transcriptLines.startedAt, transcriptLines.id);
+      .orderBy(transcriptLines.spokenAt, transcriptLines.id);
 
     const results = await Promise.all(participantsOf(session).map((p) => generateForParticipant(session, transcript, p)));
 
@@ -43,7 +43,7 @@ async function generateForParticipant(session: Session, transcript: Line[], part
   const { userId } = participant;
   await db
     .insert(feedbackReports)
-    .values({ sessionId: session.id, userId, targetLanguage: session.targetLanguage, level: participant.level })
+    .values({ sessionId: session.id, userId, targetLanguage: session.lang, level: participant.level })
     .onConflictDoNothing();
   const [feedback] = await db
     .select()
@@ -66,8 +66,11 @@ async function generateForParticipant(session: Session, transcript: Line[], part
     );
   }
 
-  const lines = transcript.filter((s) => s.speakerId === userId);
-  const metrics = computeFluencyMetrics(session.targetLanguage, lines);
+  const lines = transcript.filter((s) => s.userId === userId);
+  const metrics = computeFluencyMetrics(
+    session.lang,
+    lines.map((l) => ({ text: l.text, startedAt: l.spokenAt, endedAt: l.endedAt, confidence: l.confidence })),
+  );
 
   if (!hasEnoughSpeech(metrics)) {
     return finish(
@@ -84,15 +87,15 @@ async function generateForParticipant(session: Session, transcript: Line[], part
   }
 
   try {
-    const [profile] = await db.select({ nativeLanguage: users.nativeLanguage }).from(users).where(eq(users.id, userId));
+    const [profile] = await db.select({ nativeLang: users.nativeLang }).from(users).where(eq(users.id, userId));
     const analysis = await getAI().analyzeConversation({
-      targetLanguage: session.targetLanguage,
-      nativeLanguage: profile?.nativeLanguage ?? null,
+      targetLanguage: session.lang,
+      nativeLanguage: profile?.nativeLang ?? null,
       level: participant.level,
       topics: session.topics.map((t) => t.title).filter(Boolean),
       utterances: lines.map((s) => ({
         text: s.text,
-        offsetSeconds: (s.startedAt.getTime() - session.startedAt!.getTime()) / 1000,
+        offsetSeconds: (s.spokenAt.getTime() - session.startedAt!.getTime()) / 1000,
         confidence: s.confidence,
       })),
       metrics,
@@ -109,13 +112,13 @@ async function generateForParticipant(session: Session, transcript: Line[], part
           statusMessage: null,
           metrics,
           estimatedPerformance: analysis.estimatedPerformance,
-          grammarScore: analysis.grammarScore,
-          vocabularyScore: analysis.vocabularyScore,
-          fluencyScore: analysis.fluencyScore,
+          grammar: analysis.grammarScore,
+          vocabulary: analysis.vocabularyScore,
+          fluency: analysis.fluencyScore,
           pronunciationScore: null,
           overallScore: overall,
           summary: analysis.summary,
-          details: {
+          summaryJson: {
             pronunciationNote: pronunciationNote(pronunciationCapability().note, metrics),
             vocabularySuggestions: analysis.vocabularySuggestions,
             fluencyNotes: analysis.fluencyNotes,
@@ -136,16 +139,16 @@ async function generateForParticipant(session: Session, transcript: Line[], part
             userId,
             transcriptLineId: lineContaining(lines, m.original)?.id ?? null,
             category: m.category,
-            originalText: m.original,
-            correctedText: m.corrected,
-            explanation: m.explanation,
+            original: m.original,
+            fixed: m.corrected,
+            reason: m.explanation,
             position,
           })),
         );
       }
     });
 
-    const language = session.targetLanguage;
+    const language = session.lang;
     await db
       .update(users)
       .set({
@@ -183,7 +186,7 @@ async function maybePurgeTranscript(session: Session) {
   const people = await db
     .select({ retainTranscripts: users.retainTranscripts })
     .from(users)
-    .where(inArray(users.id, [session.userAId, session.userBId]));
+    .where(inArray(users.id, [session.userA, session.userB]));
   const everyoneRetains = people.length === 2 && people.every((u) => u.retainTranscripts);
   if (everyoneRetains) return;
   await db.transaction(async (tx) => {
@@ -214,7 +217,7 @@ export async function toFeedbackDTO(feedback: FeedbackReport): Promise<FeedbackD
       .where(and(eq(mistakes.sessionId, feedback.sessionId), eq(mistakes.userId, feedback.userId)))
       .orderBy(asc(mistakes.position)),
   ]);
-  const details = feedback.details;
+  const details = feedback.summaryJson;
   return {
     id: feedback.id,
     conversationId: feedback.sessionId,
@@ -223,15 +226,15 @@ export async function toFeedbackDTO(feedback: FeedbackReport): Promise<FeedbackD
     targetLanguage: feedback.targetLanguage,
     level: feedback.level as FeedbackDTO["level"],
     estimatedPerformance: feedback.estimatedPerformance,
-    grammarScore: feedback.grammarScore,
-    vocabularyScore: feedback.vocabularyScore,
-    fluencyScore: feedback.fluencyScore,
+    grammarScore: feedback.grammar,
+    vocabularyScore: feedback.vocabulary,
+    fluencyScore: feedback.fluency,
     pronunciationScore: feedback.pronunciationScore,
     pronunciationNote: details?.pronunciationNote ?? null,
     overallScore: feedback.overallScore,
     summary: feedback.summary,
     mistakes: rows.map(
-      (m): Mistake => ({ category: m.category, original: m.originalText, corrected: m.correctedText, explanation: m.explanation }),
+      (m): Mistake => ({ category: m.category, original: m.original, corrected: m.fixed, explanation: m.reason }),
     ),
     vocabularySuggestions: details?.vocabularySuggestions ?? [],
     fluencyNotes: details?.fluencyNotes ?? [],

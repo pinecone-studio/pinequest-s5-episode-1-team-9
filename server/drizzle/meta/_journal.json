@@ -22,6 +22,13 @@
       "when": 1791859100918,
       "tag": "0002_user_blocks",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791863348415,
+      "tag": "0003_spec_column_names",
+      "breakpoints": true
     }
   ]
 }

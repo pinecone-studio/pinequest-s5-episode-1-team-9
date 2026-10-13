@@ -79,19 +79,19 @@ export class Matchmaker {
         .select({ partnerId: recentPartners.partnerId })
         .from(recentPartners)
         .where(eq(recentPartners.userId, userId))
-        .orderBy(desc(recentPartners.lastMatchedAt))
+        .orderBy(desc(recentPartners.metAt))
         .limit(RECENT_PARTNERS_LOADED),
     ]);
     const [row] = await db
       .insert(queue)
-      .values({ userId, nativeLanguage: user.nativeLanguage, targetLanguage, level: profile.level })
+      .values({ userId, nativeLanguage: user.nativeLang, lang: targetLanguage, level: profile.level })
       .returning({ id: queue.id });
 
     const entry: LiveEntry = {
       queueRowId: row!.id,
       userId,
       socketId,
-      nativeLanguage: user.nativeLanguage,
+      nativeLanguage: user.nativeLang,
       targetLanguage,
       level: profile.level,
       joinedAt: Date.now(),

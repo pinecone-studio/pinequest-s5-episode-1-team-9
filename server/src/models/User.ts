@@ -31,18 +31,22 @@ function usernameBase(clerkUser: { username: string | null; firstName: string | 
 }
 
 /**
- * Returns the app's row for a Clerk user, creating it on first sign-in. Clerk keeps the email and
- * credentials; only the public username and learning settings live here.
+ * Returns the app's row for a Clerk user, creating it on first sign-in. Clerk keeps the credentials;
+ * the row holds a copy of the primary email, the public username and learning settings.
  */
 export async function findOrCreateUser(clerkUserId: string): Promise<User> {
   const existing = await findUserById(clerkUserId);
-  if (existing) return existing;
+  if (existing && (existing.email || existing.deletedAt)) return existing;
 
-  const base = usernameBase(await clerkClient.users.getUser(clerkUserId));
+  const clerkUser = await clerkClient.users.getUser(clerkUserId);
+  const email = clerkUser.primaryEmailAddress?.emailAddress ?? null;
+  if (existing) return email ? updateUser(existing.id, { email }) : existing;
+
+  const base = usernameBase(clerkUser);
   for (let attempt = 0; attempt < 6; attempt++) {
-    const username = attempt === 0 ? base : `${base}_${Math.floor(1000 + Math.random() * 9000)}`;
+    const name = attempt === 0 ? base : `${base}_${Math.floor(1000 + Math.random() * 9000)}`;
     try {
-      const [created] = await db.insert(users).values({ id: clerkUserId, username }).onConflictDoNothing({ target: users.id }).returning();
+      const [created] = await db.insert(users).values({ id: clerkUserId, name, email }).onConflictDoNothing({ target: users.id }).returning();
       // Another request for the same new user won the race.
       return created ?? (await findUserById(clerkUserId))!;
     } catch (err) {
@@ -64,27 +68,27 @@ export function withLanguageLevel(
     : [...user.targetLanguages, { language, level, levelSource, estimatedPerformance: null }];
 }
 
-export function isOnboarded(user: Pick<User, "nativeLanguage" | "targetLanguages" | "activeTargetLanguage" | "rulesAcceptedAt">) {
-  return Boolean(user.nativeLanguage && user.activeTargetLanguage && user.targetLanguages.length && user.rulesAcceptedAt);
+export function isOnboarded(user: Pick<User, "nativeLang" | "targetLanguages" | "targetLang" | "rulesAcceptedAt">) {
+  return Boolean(user.nativeLang && user.targetLang && user.targetLanguages.length && user.rulesAcceptedAt);
 }
 
-export function activeLanguageProfile(user: Pick<User, "targetLanguages" | "activeTargetLanguage">, language?: string) {
-  const code = language ?? user.activeTargetLanguage;
+export function activeLanguageProfile(user: Pick<User, "targetLanguages" | "targetLang">, language?: string) {
+  const code = language ?? user.targetLang;
   return user.targetLanguages.find((t) => t.language === code) ?? null;
 }
 
 export function toUserDTO(user: User): UserDTO {
   return {
     id: user.id,
-    username: user.username,
-    nativeLanguage: user.nativeLanguage,
+    username: user.name,
+    nativeLanguage: user.nativeLang,
     targetLanguages: user.targetLanguages.map((t) => ({
       language: t.language,
       level: t.level,
       levelSource: t.levelSource ?? "self",
       estimatedPerformance: t.estimatedPerformance ?? null,
     })),
-    activeTargetLanguage: user.activeTargetLanguage,
+    activeTargetLanguage: user.targetLang,
     privacy: {
       transcriptionConsent: user.transcriptionConsent,
       retainTranscripts: user.retainTranscripts,
