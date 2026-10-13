@@ -17,9 +17,12 @@ const EnvSchema = z.object({
     .string({ error: "CLERK_PUBLISHABLE_KEY is missing. Run `clerk env pull --file .env`." })
     .startsWith("pk_"),
 
-  AI_PROVIDER: z.enum(["anthropic"]).default("anthropic"),
+  /** Which AI provider to use. `gemini` has a free tier (set GEMINI_API_KEY). */
+  AI_PROVIDER: z.enum(["anthropic", "gemini"]).default("anthropic"),
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default("claude-opus-5-5"),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
 
   STUN_URLS: z.string().default("stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302"),
   TURN_URL: z.string().optional(),
@@ -35,6 +38,40 @@ const EnvSchema = z.object({
 
   /** Distinct reporters within 24h that trigger an automatic temporary suspension. */
   MODERATION_AUTO_SUSPEND_REPORTS: z.coerce.number().int().positive().default(3),
+
+  /** Real-time AI moderation of conversation transcripts (auto-report + temporary suspension). */
+  AI_MODERATION_ENABLED: z
+    .enum(["true", "false", "1", "0"])
+    .default("true")
+    .transform((v) => v === "true" || v === "1"),
+  /** How often each active conversation's new transcript is scanned, in seconds. */
+  AI_MODERATION_INTERVAL_SECONDS: z.coerce.number().int().min(5).default(30),
+  /** Minimum new utterances since the last scan before a conversation is checked. */
+  AI_MODERATION_MIN_SEGMENTS: z.coerce.number().int().min(1).default(4),
+  /** Suspension length applied automatically when AI flags a violation. */
+  AI_MODERATION_SUSPEND_DAYS: z.coerce.number().int().positive().default(14),
+  /** Minimum severity for an AI finding to be acted on. */
+  AI_MODERATION_MIN_SEVERITY: z.enum(["low", "medium", "high"]).default("medium"),
+  /** Minimum model confidence required before acting on a finding. */
+  AI_MODERATION_MIN_CONFIDENCE: z.enum(["low", "medium", "high"]).default("medium"),
+
+  /** Real-time AI vision review of camera frames. The browser samples its own camera (no media
+   *  server); frames are analyzed in memory and never stored. */
+  AI_MODERATION_VIDEO_ENABLED: z
+    .enum(["true", "false", "1", "0"])
+    .default("true")
+    .transform((v) => v === "true" || v === "1"),
+  /** Minimum sampled frames buffered since the last scan before a vision check runs. */
+  AI_MODERATION_VIDEO_MIN_FRAMES: z.coerce.number().int().min(1).default(1),
+  /** Vision findings must be at least this severe/confident; imagery false positives are costly. */
+  AI_MODERATION_VIDEO_MIN_SEVERITY: z.enum(["low", "medium", "high"]).default("medium"),
+  AI_MODERATION_VIDEO_MIN_CONFIDENCE: z.enum(["low", "medium", "high"]).default("high"),
+
+  /**
+   * Comma-separated emails that are promoted to admin at first sign-in (and on every auth
+   * check until they have the role), so you can bootstrap the first administrator.
+   */
+  ADMIN_EMAILS: z.string().default(""),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -47,6 +84,11 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === "production";
+
+/** Lowercased admin emails from ADMIN_EMAILS (bootstrap admins). */
+export const adminEmails: ReadonlySet<string> = new Set(
+  env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
+);
 
 /** Exact origins allowed for CORS and Socket.IO. localhost:3000 is added in development only. */
 export const allowedOrigins: ReadonlySet<string> = new Set([

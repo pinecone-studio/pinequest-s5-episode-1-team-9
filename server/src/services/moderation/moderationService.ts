@@ -1,5 +1,5 @@
 import type { ReportReason } from "@linguamatch/shared";
-import { and, countDistinct, desc, eq, gt, gte, isNull, lte, or } from "drizzle-orm";
+import { and, countDistinct, desc, eq, gt, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import { env } from "../../config/env";
 import { db, isUniqueViolation } from "../../db/client";
 import { bans, reports, userBlocks } from "../../db/schema";
@@ -66,6 +66,27 @@ export async function findActiveBan(userId: string) {
     .orderBy(desc(bans.createdAt))
     .limit(1);
   return ban ?? null;
+}
+
+/** One active ban per user for a batch of users (newest first). Skipped ids have no ban. */
+export async function activeBansFor(userIds: string[]): Promise<Map<string, typeof bans.$inferSelect>> {
+  const map = new Map<string, typeof bans.$inferSelect>();
+  if (userIds.length === 0) return map;
+  const now = new Date();
+  const rows = await db
+    .select()
+    .from(bans)
+    .where(
+      and(
+        inArray(bans.userId, userIds),
+        isNull(bans.revokedAt),
+        lte(bans.startsAt, now),
+        or(isNull(bans.endsAt), gt(bans.endsAt, now)),
+      ),
+    )
+    .orderBy(desc(bans.createdAt));
+  for (const row of rows) if (!map.has(row.userId)) map.set(row.userId, row);
+  return map;
 }
 
 /** Temporarily suspends users who are reported by several different people within a day. */

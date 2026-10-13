@@ -1,6 +1,7 @@
 import { clerkClient } from "@clerk/express";
 import type { CefrLevel, LanguageProfile, UserDTO } from "@linguamatch/shared";
 import { eq } from "drizzle-orm";
+import { adminEmails } from "../config/env";
 import { db, isUniqueViolation, type DB } from "../db/client";
 import { users } from "../db/schema";
 
@@ -30,23 +31,36 @@ function usernameBase(clerkUser: { username: string | null; firstName: string | 
   return "learner";
 }
 
+/** Is this email one of the ADMIN_EMAILS bootstrap admins? */
+const isAdminEmail = (email: string) => adminEmails.has(email.trim().toLowerCase());
+
 /**
  * Returns the app's row for a Clerk user, creating it on first sign-in. Clerk keeps the credentials;
  * the row holds a copy of the primary email, the public username and learning settings.
  */
 export async function findOrCreateUser(clerkUserId: string): Promise<User> {
   const existing = await findUserById(clerkUserId);
-  if (existing && (existing.email || existing.deletedAt)) return existing;
+  if (existing) {
+    if (existing.deletedAt) return existing;
+    // Promote a bootstrap admin even if they signed up before ADMIN_EMAILS was set.
+    if (existing.email && isAdminEmail(existing.email) && existing.role !== "admin") {
+      return updateUser(existing.id, { role: "admin" });
+    }
+    return existing;
+  }
 
   const clerkUser = await clerkClient.users.getUser(clerkUserId);
   const email = clerkUser.primaryEmailAddress?.emailAddress ?? null;
-  if (existing) return email ? updateUser(existing.id, { email }) : existing;
 
   const base = usernameBase(clerkUser);
   for (let attempt = 0; attempt < 6; attempt++) {
     const name = attempt === 0 ? base : `${base}_${Math.floor(1000 + Math.random() * 9000)}`;
     try {
-      const [created] = await db.insert(users).values({ id: clerkUserId, name, email }).onConflictDoNothing({ target: users.id }).returning();
+      const [created] = await db
+        .insert(users)
+        .values({ id: clerkUserId, name, email, ...(email && isAdminEmail(email) ? { role: "admin" } : {}) })
+        .onConflictDoNothing({ target: users.id })
+        .returning();
       // Another request for the same new user won the race.
       return created ?? (await findUserById(clerkUserId))!;
     } catch (err) {
@@ -81,6 +95,7 @@ export function toUserDTO(user: User): UserDTO {
   return {
     id: user.id,
     username: user.name,
+    role: user.role,
     nativeLanguage: user.nativeLang,
     targetLanguages: user.targetLanguages.map((t) => ({
       language: t.language,

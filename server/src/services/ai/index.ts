@@ -1,5 +1,6 @@
 import { env } from "../../config/env";
 import { AnthropicProvider } from "./anthropicProvider";
+import { GeminiProvider } from "./geminiProvider";
 import { AIUnavailableError, type AIProvider } from "./types";
 
 export * from "./types";
@@ -14,9 +15,16 @@ export function getAI(): AIProvider {
       if (!env.ANTHROPIC_API_KEY) throw new AIUnavailableError();
       provider = new AnthropicProvider(env.ANTHROPIC_API_KEY, env.ANTHROPIC_MODEL);
       return provider;
+    case "gemini":
+      if (!env.GEMINI_API_KEY) throw new AIUnavailableError();
+      provider = new GeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL);
+      return provider;
   }
 }
 
 export function isAIConfigured(): boolean {
-  return env.AI_PROVIDER === "anthropic" && Boolean(env.ANTHROPIC_API_KEY);
+  return (
+    (env.AI_PROVIDER === "anthropic" && Boolean(env.ANTHROPIC_API_KEY)) ||
+    (env.AI_PROVIDER === "gemini" && Boolean(env.GEMINI_API_KEY))
+  );
 }

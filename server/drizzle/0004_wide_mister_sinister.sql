@@ -1,0 +1,2 @@
+ALTER TABLE "reports" DROP CONSTRAINT "reports_reporter_session_key";--> statement-breakpoint
+ALTER TABLE "reports" ADD CONSTRAINT "reports_reporter_reported_session_key" UNIQUE("reporter_id","reported_id","session_id");

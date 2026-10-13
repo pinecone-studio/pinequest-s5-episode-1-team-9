@@ -1,7 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 
 export const COMMUNITY_RULES = [
-  "Be respectful. No harassment, bullying, threats or hate speech.",
+  "Be respectful. No harassment, bullying, threats, offensive gestures or hate speech.",
   "No sexual, explicit or violent content — on camera or in speech.",
   "You must be 18 or older to use LinguaMatch.",
   "Don't share personal details (full name, address, phone, social handles), and don't ask for them.",
@@ -24,7 +24,9 @@ export function CommunityRules({ compact = false }: { compact?: boolean }) {
         ))}
       </ul>
       <p className="text-muted-foreground mt-3 text-xs">
-        You can end, skip, block or report anyone at any time. Reported users are reviewed and may be suspended.
+        You can end, skip, block or report anyone at any time. Reported users are reviewed and may be suspended. To keep
+        this space safe, with your consent our AI reviews your conversation&apos;s transcripts and, while your camera is
+        on, periodic still frames from your own camera; frames are analyzed in memory and never stored.
       </p>
     </div>
   );
