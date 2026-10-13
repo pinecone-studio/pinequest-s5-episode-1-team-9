@@ -5,6 +5,7 @@ import helmet from "helmet";
 import { createServer } from "node:http";
 import { allowedOrigins, clerkAuthorizedParties, env, isAllowedOrigin } from "./config/env";
 import { connectDatabase, disconnectDatabase } from "./db/connect";
+import { adminRouter } from "./routes/admin";
 import { assessmentRouter } from "./routes/assessment";
 import { authRouter } from "./routes/auth";
 import { conversationsRouter } from "./routes/conversations";
@@ -51,6 +52,7 @@ async function main() {
   });
   app.use("/api/auth", authRouter);
   app.use("/api/me", usersRouter);
+  app.use("/api/admin", adminRouter);
   app.use("/api/conversations", conversationsRouter);
   app.use("/api/assessment", assessmentRouter);
   app.use("/api", (_req, res) => {

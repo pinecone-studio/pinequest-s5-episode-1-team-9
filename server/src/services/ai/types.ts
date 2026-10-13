@@ -79,7 +79,7 @@ export interface AIProvider {
 }
 
 export class AIUnavailableError extends Error {
-  constructor(message = "AI features are not configured. Set ANTHROPIC_API_KEY in .env.") {
+  constructor(message = "AI features are not configured. Set ANTHROPIC_API_KEY or GEMINI_API_KEY in .env.") {
     super(message);
   }
 }

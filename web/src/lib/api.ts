@@ -1,4 +1,15 @@
-import type { AssessmentQuestion, AssessmentResult, FeedbackDTO, ProfileStats, UserDTO } from "@linguamatch/shared";
+import type {
+  AdminActionDTO,
+  AdminBanDTO,
+  AdminReportDTO,
+  AdminStatsDTO,
+  AdminUserDTO,
+  AssessmentQuestion,
+  AssessmentResult,
+  FeedbackDTO,
+  ProfileStats,
+  UserDTO,
+} from "@linguamatch/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -149,4 +160,29 @@ export const api = {
   }) => request<{ result: AssessmentResult }>("/assessment/submit", { body }),
   applyAssessment: (targetLanguage: string, level: string) =>
     request<{ user: UserDTO }>("/assessment/apply", { body: { targetLanguage, level } }),
+};
+
+/** Builds a query string, dropping empty/undefined values, for typed filter objects. */
+function toQuery(params: Record<string, string | number | undefined>): string {
+  const out = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") out.set(k, String(v));
+  return out.toString();
+}
+
+export const adminApi = {
+  stats: () => request<{ stats: AdminStatsDTO }>("/admin/stats"),
+  reports: (params: { status?: string; limit?: number; offset?: number } = {}) =>
+    request<{ reports: AdminReportDTO[]; total: number }>(`/admin/reports?${toQuery(params)}`),
+  reviewReport: (id: number, body: { action: "dismiss" | "suspend"; days?: number | null; reason: string }) =>
+    request<{ report: AdminReportDTO; ok: true }>(`/admin/reports/${id}/review`, { body }),
+  users: (params: { q?: string; role?: string; banned?: string; deleted?: string; limit?: number; offset?: number } = {}) =>
+    request<{ users: AdminUserDTO[]; total: number }>(`/admin/users?${toQuery(params)}`),
+  changeRole: (id: string, role: string) =>
+    request<{ user: AdminUserDTO }>(`/admin/users/${id}/role`, { method: "PATCH", body: { role } }),
+  banUser: (id: string, body: { reason: string; days?: number | null }) =>
+    request<{ ban: AdminBanDTO }>(`/admin/users/${id}/ban`, { body }),
+  unbanUser: (id: string, reason: string) =>
+    request<{ ok: true }>(`/admin/users/${id}/unban`, { body: { reason } }),
+  actions: (params: { limit?: number; offset?: number } = {}) =>
+    request<{ actions: AdminActionDTO[]; total: number }>(`/admin/actions?${toQuery(params)}`),
 };

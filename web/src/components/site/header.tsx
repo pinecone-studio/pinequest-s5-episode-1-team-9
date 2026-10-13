@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings, ShieldCheck, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,13 @@ export function SiteHeader() {
                   <User /> <span className="hidden sm:inline">{user.username}</span>
                 </Link>
               </Button>
+              {user.role !== "user" && (
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/admin">
+                    <ShieldCheck /> <span className="hidden sm:inline">Admin</span>
+                  </Link>
+                </Button>
+              )}
               <Button variant="ghost" size="icon" asChild aria-label="Settings">
                 <Link href="/settings">
                   <Settings />

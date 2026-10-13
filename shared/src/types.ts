@@ -15,9 +15,18 @@ export interface PrivacySettings {
   retainTranscripts: boolean;
 }
 
+export const USER_ROLES = ["user", "moderator", "admin"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  user: "User",
+  moderator: "Moderator",
+  admin: "Admin",
+};
+
 export interface UserDTO {
   id: string;
   username: string;
+  role: UserRole;
   nativeLanguage: string | null;
   targetLanguages: LanguageProfile[];
   activeTargetLanguage: string | null;
@@ -217,3 +226,68 @@ export const REPORT_REASONS = [
   { value: "other", label: "Other" },
 ] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number]["value"];
+
+// ─── Admin / moderation ────────────────────────────────────────────────────
+
+export type AdminReportStatus = "open" | "under_review" | "actioned" | "dismissed";
+
+export interface AdminBanDTO {
+  id: number;
+  source: "automatic" | "moderator";
+  reason: string;
+  startsAt: string;
+  /** Null means permanent. */
+  endsAt: string | null;
+  revokedAt: string | null;
+  revokedBy: string | null;
+  createdBy: string | null;
+}
+
+export interface AdminReportDTO {
+  id: number;
+  reason: ReportReason;
+  details: string;
+  aiFlag: boolean;
+  status: AdminReportStatus;
+  reporter: { id: string; username: string };
+  reported: { id: string; username: string };
+  sessionId: string;
+  sessionLang: string;
+  sessionStartedAt: string | null;
+  sessionEndedAt: string | null;
+  createdAt: string;
+  activeBan: AdminBanDTO | null;
+}
+
+export interface AdminUserDTO {
+  id: string;
+  username: string;
+  email: string | null;
+  role: UserRole;
+  nativeLanguage: string | null;
+  activeTargetLanguage: string | null;
+  level: CefrLevel | null;
+  onboarded: boolean;
+  deletedAt: string | null;
+  createdAt: string;
+  activeBan: AdminBanDTO | null;
+  openReportsCount: number;
+}
+
+export interface AdminStatsDTO {
+  openReports: number;
+  activeBans: number;
+  totalUsers: number;
+  usersLast24h: number;
+}
+
+export interface AdminActionDTO {
+  id: number;
+  action: string;
+  admin: { id: string; username: string };
+  targetUser: { id: string; username: string } | null;
+  reportId: number | null;
+  reason: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}

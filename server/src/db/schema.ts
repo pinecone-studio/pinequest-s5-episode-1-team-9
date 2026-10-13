@@ -1,6 +1,7 @@
 import {
   CEFR_LEVELS,
   REPORT_REASONS,
+  USER_ROLES,
   type Exercise,
   type FluencyMetrics,
   type LanguageProfile,
@@ -27,7 +28,6 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
-export const USER_ROLES = ["user", "moderator", "admin"] as const;
 export const MATCHING_MODES = ["exact_level", "flexible_level"] as const;
 export const CALL_MODES = ["video", "voice"] as const;
 export const QUEUE_STATUSES = ["waiting", "matched", "cancelled", "expired"] as const;
