@@ -1,6 +1,7 @@
 import { ArrowRight, BarChart3, Brain, MessageCircle, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site/header";
+import { RoomPreview } from "@/components/site/room-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -145,40 +146,3 @@ export default function LandingPage() {
   );
 }
 
-function RoomPreview() {
-  return (
-    <div className="relative rounded-2xl border bg-card p-3 shadow-xl shadow-primary/5" aria-hidden>
-      <div className="mb-3 flex items-center justify-between px-1 text-xs">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">English</Badge>
-          <Badge variant="outline">B1</Badge>
-        </div>
-        <span className="text-muted-foreground font-mono">08:42</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          { name: "You", tone: "from-indigo-200 to-violet-300" },
-          { name: "Partner · B1", tone: "from-emerald-200 to-teal-300" },
-        ].map((t) => (
-          <div key={t.name} className={`relative aspect-[4/5] rounded-xl bg-gradient-to-br ${t.tone}`}>
-            <span className="absolute bottom-2 left-2 rounded-md bg-black/40 px-2 py-0.5 text-[11px] text-white">{t.name}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 rounded-xl border bg-background p-4">
-        <div className="text-primary flex items-center gap-1.5 text-xs font-medium">
-          <Sparkles className="size-3.5" /> Today's topic
-        </div>
-        <div className="mt-1.5 font-medium">Big city or small town?</div>
-        <div className="text-muted-foreground mt-1 text-xs">Explain your choice and give at least two reasons.</div>
-        <div className="text-muted-foreground mt-3 flex items-center gap-2 text-[11px]">
-          <span className="relative flex size-2">
-            <span className="animate-pulse-ring absolute inline-flex size-full rounded-full bg-emerald-500" />
-            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-          </span>
-          Listening…
-        </div>
-      </div>
-    </div>
-  );
-}
