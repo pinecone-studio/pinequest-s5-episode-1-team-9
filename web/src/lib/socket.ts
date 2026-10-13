@@ -3,7 +3,7 @@
 import type { ClientToServerEvents, ServerToClientEvents } from "@linguamatch/shared";
 import { useSyncExternalStore } from "react";
 import { io, type Socket } from "socket.io-client";
-import { getFreshAccessToken, refreshSession } from "./api";
+import { getFreshAccessToken } from "./api";
 
 export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -62,7 +62,7 @@ function createSocket(): AppSocket {
     },
   });
 
-  // After a server-side "unauthorized" we refresh once and reconnect once.
+  // After a server-side "unauthorized" we reconnect once with a freshly minted token.
   let authRetried = false;
 
   s.on("connect", () => {
@@ -80,18 +80,19 @@ function createSocket(): AppSocket {
       return;
     }
     // The server rejected the token. socket.io doesn't retry middleware errors, so we do,
-    // once. If the refresh itself is rejected, the auth context sends the user to /login.
+    // once. If there's no session any more, the auth context sends the user to /login.
     if (authRetried) {
       setStatus("auth_error");
       return;
     }
     authRetried = true;
-    refreshSession().then(
-      (user) => {
-        if (user && socket === s) s.connect();
+    getFreshAccessToken(true).then(
+      (token) => {
+        if (token && socket === s) s.connect();
+        else setStatus("auth_error");
       },
       () => {
-        // Couldn't reach the server to refresh: treat as a network problem and try again shortly.
+        // Couldn't reach Clerk for a new token: treat as a network problem and try again shortly.
         authRetried = false;
         setStatus("unreachable");
         setTimeout(() => socket === s && !s.connected && s.connect(), 5000);

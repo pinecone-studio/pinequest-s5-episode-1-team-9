@@ -1,28 +1,38 @@
-import type { CefrLevel, FeedbackStatus, ProfileStats } from "@linguamatch/shared";
-import { Conversation, conversationDurationSeconds } from "../../models/Conversation";
-import { ConversationFeedback } from "../../models/ConversationFeedback";
-import type { UserDoc } from "../../models/User";
+import type { ProfileStats } from "@linguamatch/shared";
+import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { db } from "../../db/client";
+import { feedbackReports, sessions } from "../../db/schema";
+import { involvesUser, sessionDurationSeconds } from "../../models/Session";
+import type { User } from "../../models/User";
 
 type TrendMetric = ProfileStats["languages"][number]["trend"][number]["metric"];
-const METRIC_FIELDS: [TrendMetric, "fluencyScore" | "grammarScore" | "vocabularyScore" | "overallScore"][] = [
-  ["fluency", "fluencyScore"],
-  ["grammar", "grammarScore"],
-  ["vocabulary", "vocabularyScore"],
+const METRIC_FIELDS: [TrendMetric, "fluency" | "grammar" | "vocabulary" | "overallScore"][] = [
+  ["fluency", "fluency"],
+  ["grammar", "grammar"],
+  ["vocabulary", "vocabulary"],
   ["overall", "overallScore"],
 ];
 
 const avg = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
 
-export async function buildProfileStats(user: UserDoc): Promise<ProfileStats> {
-  const [conversations, feedback] = await Promise.all([
-    Conversation.find({ "participants.userId": user._id, status: "ended" })
-      .sort({ startTime: -1 })
-      .select("targetLanguage startTime endTime participants.joinedAt")
-      .lean(),
-    ConversationFeedback.find({ userId: user._id }).sort({ createdAt: 1 }).lean(),
+/** Everything is derived from sessions and feedback, so there are no counters to drift. */
+export async function buildProfileStats(user: User): Promise<ProfileStats> {
+  const [completed, feedback] = await Promise.all([
+    // A session counts once both people were in the room (started_at is set).
+    db
+      .select({
+        id: sessions.id,
+        targetLanguage: sessions.lang,
+        startedAt: sessions.startedAt,
+        endedAt: sessions.endedAt,
+      })
+      .from(sessions)
+      .where(and(eq(sessions.status, "ended"), isNotNull(sessions.startedAt), involvesUser(user.id)))
+      .orderBy(desc(sessions.startedAt)),
+    db.select().from(feedbackReports).where(eq(feedbackReports.userId, user.id)).orderBy(asc(feedbackReports.createdAt)),
   ]);
-  const completed = conversations.filter((c) => c.participants.every((p) => p.joinedAt));
-  const feedbackByConversation = new Map(feedback.map((f) => [f.conversationId.toString(), f]));
+  const feedbackBySession = new Map(feedback.map((f) => [f.sessionId, f]));
+  const scored = feedback.flatMap((f) => (f.status === "ready" && f.overallScore !== null ? [f.overallScore] : []));
 
   const languages = user.targetLanguages.map((t) => {
     const convs = completed.filter((c) => c.targetLanguage === t.language);
@@ -39,34 +49,33 @@ export async function buildProfileStats(user: UserDoc): Promise<ProfileStats> {
         : [];
     return {
       language: t.language,
-      level: t.level as CefrLevel,
+      level: t.level,
       estimatedPerformance: t.estimatedPerformance ?? null,
       conversations: convs.length,
-      practiceSeconds: convs.reduce((sum, c) => sum + conversationDurationSeconds(c), 0),
+      practiceSeconds: convs.reduce((sum, c) => sum + sessionDurationSeconds(c), 0),
       trend,
     };
   });
 
-  const stats = user.statistics;
   return {
-    username: user.username,
-    nativeLanguage: user.nativeLanguage ?? null,
-    memberSince: (user.get("createdAt") as Date).toISOString(),
+    username: user.name,
+    nativeLanguage: user.nativeLang,
+    memberSince: user.createdAt.toISOString(),
     totals: {
-      conversations: stats?.conversations ?? 0,
-      practiceSeconds: stats?.practiceSeconds ?? 0,
-      averageScore: stats?.scoredConversations ? Math.round(stats.scoreSum / stats.scoredConversations) : null,
+      conversations: completed.length,
+      practiceSeconds: completed.reduce((sum, c) => sum + sessionDurationSeconds(c), 0),
+      averageScore: scored.length ? avg(scored) : null,
     },
     languages,
     recent: completed.slice(0, 10).map((c) => {
-      const f = feedbackByConversation.get(c._id.toString());
+      const f = feedbackBySession.get(c.id);
       return {
-        conversationId: c._id.toString(),
+        conversationId: c.id,
         targetLanguage: c.targetLanguage,
-        endedAt: c.endTime?.toISOString() ?? null,
-        durationSeconds: conversationDurationSeconds(c),
+        endedAt: c.endedAt?.toISOString() ?? null,
+        durationSeconds: sessionDurationSeconds(c),
         overallScore: f?.overallScore ?? null,
-        status: (f?.status ?? "pending") as FeedbackStatus,
+        status: f?.status ?? "pending",
       };
     }),
   };

@@ -11,6 +11,7 @@ import { LevelPicker } from "@/components/site/level-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
@@ -22,6 +23,7 @@ export default function OnboardingPage() {
   const { setUser } = useAuth();
   const router = useRouter();
 
+  const [username, setUsername] = useState("");
   const [nativeLanguage, setNativeLanguage] = useState("");
   const [targetLanguage, setTargetLanguage] = useState("en");
   const [level, setLevel] = useState<CefrLevel | null>(null);
@@ -32,6 +34,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!user) return;
+    setUsername(user.username);
     if (user.nativeLanguage) setNativeLanguage(user.nativeLanguage);
     const active = user.targetLanguages.find((t) => t.language === user.activeTargetLanguage) ?? user.targetLanguages[0];
     if (active) {
@@ -46,12 +49,16 @@ export default function OnboardingPage() {
 
   async function save(thenAssess = false) {
     setError(null);
+    if (!/^[A-Za-z0-9_]{3,24}$/.test(username.trim())) {
+      return setError("Pick a username of 3–24 letters, numbers or underscores.");
+    }
     if (!nativeLanguage) return setError("Choose your native language.");
     if (!level && !thenAssess) return setError("Choose your level, or let AI assess you.");
     if (!acceptRules) return setError("Please accept the community rules.");
     setSaving(true);
     try {
       const { user } = await api.onboarding({
+        username: username.trim(),
         nativeLanguage,
         targetLanguage,
         level: level ?? "A1",
@@ -81,6 +88,19 @@ export default function OnboardingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                minLength={3}
+                maxLength={24}
+                pattern="[A-Za-z0-9_]+"
+                autoComplete="off"
+              />
+              <p className="text-muted-foreground text-xs">The only name partners see. Avoid using your real name.</p>
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="native">Native language</Label>
               <NativeSelect id="native" value={nativeLanguage} onChange={(e) => setNativeLanguage(e.target.value)}>

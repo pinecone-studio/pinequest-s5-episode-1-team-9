@@ -1,3 +1,5 @@
+import { ClerkProvider } from "@clerk/nextjs";
+import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
@@ -15,7 +17,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
-        <AuthProvider>{children}</AuthProvider>
+        <ClerkProvider
+          appearance={{ theme: shadcn }}
+          signInUrl="/login"
+          signUpUrl="/signup"
+          signInFallbackRedirectUrl="/match"
+          signUpFallbackRedirectUrl="/onboarding"
+          afterSignOutUrl="/"
+        >
+          <AuthProvider>{children}</AuthProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

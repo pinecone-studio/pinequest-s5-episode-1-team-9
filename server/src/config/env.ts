@@ -1,26 +1,21 @@
 import { z } from "zod";
 
-const boolish = z
-  .enum(["true", "false", "1", "0"])
-  .transform((v) => v === "true" || v === "1");
-
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   /** Comma-separated list of exact web origins allowed to call the API and open sockets. */
   CLIENT_ORIGIN: z.string().default("http://localhost:3000"),
 
-  MONGODB_URI: z.string().optional(),
-  /** Dev convenience: spin up an ephemeral MongoDB when MONGODB_URI is not set. */
-  USE_IN_MEMORY_DB: boolish.default(false),
+  /** Pooled Postgres connection string (Neon `-pooler` host) used for app queries. */
+  DATABASE_URL: z.string({ error: "DATABASE_URL is missing. Run `neon env pull` or set it to your Neon connection string." }).min(1),
+  /** Direct (unpooled) connection used for migrations. Falls back to DATABASE_URL. */
+  DATABASE_URL_UNPOOLED: z.string().min(1).optional(),
 
-  JWT_SECRET: z
-    .string({ error: "JWT_SECRET is missing. Set it to a long random string (the same value everywhere tokens are verified)." })
-    .min(32, "JWT_SECRET must be at least 32 characters"),
-  /** Lifetime of the in-memory access token sent as a Bearer header and in the socket handshake. */
-  ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().max(60).default(15),
-  /** Lifetime of the httpOnly refresh cookie; each refresh extends it. */
-  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  /** Clerk keys. @clerk/express reads them from process.env; they're validated here so startup fails early. */
+  CLERK_SECRET_KEY: z.string({ error: "CLERK_SECRET_KEY is missing. Run `clerk env pull --file .env`." }).startsWith("sk_"),
+  CLERK_PUBLISHABLE_KEY: z
+    .string({ error: "CLERK_PUBLISHABLE_KEY is missing. Run `clerk env pull --file .env`." })
+    .startsWith("pk_"),
 
   AI_PROVIDER: z.enum(["anthropic"]).default("anthropic"),
   ANTHROPIC_API_KEY: z.string().optional(),
@@ -58,6 +53,12 @@ export const allowedOrigins: ReadonlySet<string> = new Set([
   ...env.CLIENT_ORIGIN.split(",").map((o) => o.trim().replace(/\/+$/, "")).filter(Boolean),
   ...(isProd ? [] : ["http://localhost:3000"]),
 ]);
+
+/**
+ * Origins a Clerk session token must have been minted for (its `azp` claim). Enforced in production
+ * only: tokens minted through Clerk's Backend API for tests and scripts carry no `azp` at all.
+ */
+export const clerkAuthorizedParties: string[] | undefined = isProd ? [...allowedOrigins] : undefined;
 
 /** Requests without an Origin header (same-origin GETs, curl, health checks) are not cross-site and are allowed. */
 export const isAllowedOrigin = (origin: string | undefined) => !origin || allowedOrigins.has(origin);
