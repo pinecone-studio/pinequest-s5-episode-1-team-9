@@ -387,7 +387,10 @@ export const reports = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    unique("reports_reporter_session_key").on(t.reporterId, t.sessionId),
+    // One report per reporter per reported user per session. Automated (AI) moderation always
+    // reports as the same system user, so this still allows one AI report per offender per call
+    // while letting both participants be reported in the same session.
+    unique("reports_reporter_reported_session_key").on(t.reporterId, t.reportedId, t.sessionId),
     check("reports_not_self", sql`${t.reporterId} <> ${t.reportedId}`),
     check("reports_reason_check", oneOf(t.reason, REPORT_REASON_VALUES)),
     check("reports_status_check", oneOf(t.status, REPORT_STATUSES)),

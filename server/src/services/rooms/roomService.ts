@@ -7,6 +7,7 @@ import { findSession, involvesUser, participantOf, participantsOf, type Session 
 import { conversationRoom, getIO, userRoom, type AppSocket } from "../../socket/io";
 import { generateConversationFeedback } from "../feedback/feedbackService";
 import type { MatchPair } from "../matchmaking/algorithm";
+import { clearModerationBuffer, recordForModeration } from "../moderation/aiModerationQueue";
 import { sanitizeSegment } from "../speech";
 import { pickRandomTopic } from "../topics/topicBank";
 
@@ -290,6 +291,8 @@ export async function addTranscriptSegment(socket: AppSocket, input: TranscriptS
     endedAt: segment.endedAt,
     confidence: segment.confidence,
   });
+  // Feed the real-time AI moderation window (in memory; the sweeper scans it periodically).
+  recordForModeration(session.id, userId, segment.text, segment.startedAt);
 }
 
 /** Ends a session exactly once, notifies both users and starts feedback. */
@@ -305,6 +308,7 @@ export async function endSession(sessionId: string, byUserId: string | null, rea
   const state = rooms.get(sessionId);
   if (state) for (const key of [...state.timers.keys()]) clearTimer(state, key);
   rooms.delete(sessionId);
+  clearModerationBuffer(sessionId);
   if (!ended) return;
 
   const io = getIO();

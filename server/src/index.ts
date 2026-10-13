@@ -13,6 +13,11 @@ import { usersRouter } from "./routes/users";
 import { isAIConfigured } from "./services/ai";
 import { purgeStaleTranscripts } from "./services/feedback/feedbackService";
 import { expireStaleQueueEntries, pruneResolvedQueueEntries } from "./services/matchmaking/matchmaker";
+import {
+  ensureSystemModerator,
+  startAIModerationSweep,
+  stopAIModerationSweep,
+} from "./services/moderation/aiModeration";
 import { endStaleSessions } from "./services/rooms/roomService";
 import { SPEECH_MODE, pronunciationCapability } from "./services/speech";
 import { createSocketServer } from "./socket";
@@ -22,6 +27,7 @@ import { errorHandler } from "./utils/http";
 async function main() {
   await connectDatabase();
   await Promise.all([expireStaleQueueEntries(), endStaleSessions()]);
+  await ensureSystemModerator();
 
   const app = express();
   app.set("trust proxy", 1);
@@ -69,6 +75,7 @@ async function main() {
   };
   const sweep = setInterval(runSweep, 3600_000);
   runSweep();
+  startAIModerationSweep();
 
   httpServer.listen(env.PORT, () => {
     console.log(`[server] LinguaMatch API listening on port ${env.PORT}`);
@@ -80,6 +87,7 @@ async function main() {
 
   const shutdown = async () => {
     clearInterval(sweep);
+    stopAIModerationSweep();
     await io.close();
     await disconnectDatabase();
     process.exit(0);

@@ -63,6 +63,40 @@ export interface ConversationAnalysis {
   exercises: Exercise[];
 }
 
+/** Abuse categories for real-time moderation. Mirrors the community-rules report reasons. */
+export const MODERATION_CATEGORIES = ["harassment", "sexual", "hate", "minor", "spam", "other"] as const;
+export type ModerationCategory = (typeof MODERATION_CATEGORIES)[number];
+export type ModerationSeverity = "low" | "medium" | "high";
+
+export interface ModerationUtterance {
+  /** "a" is the WebRTC caller (sessions.user_a), "b" the callee. */
+  speaker: "a" | "b";
+  text: string;
+  /** Seconds from conversation start. */
+  offsetSeconds: number;
+}
+
+export interface ModerationRequest {
+  targetLanguage: string;
+  /** Recent utterances from both speakers, in order. */
+  utterances: ModerationUtterance[];
+}
+
+export interface ModerationFinding {
+  speaker: "a" | "b";
+  category: ModerationCategory;
+  severity: ModerationSeverity;
+  confidence: ModerationSeverity;
+  /** Words the model judged abusive, quoted from the transcript. */
+  quote: string;
+  /** One short sentence explaining the problem, in English. */
+  reason: string;
+}
+
+export interface ModerationResult {
+  findings: ModerationFinding[];
+}
+
 /**
  * Provider-agnostic AI interface. Swap the implementation in ./index.ts to change vendors;
  * nothing outside this folder imports a vendor SDK.
@@ -76,6 +110,8 @@ export interface AIProvider {
   evaluateAssessment(req: AssessmentEvaluationRequest): Promise<AssessmentResult>;
   /** Grammar, vocabulary, sentence-structure and fluency analysis plus feedback and exercises. */
   analyzeConversation(req: ConversationAnalysisRequest): Promise<ConversationAnalysis>;
+  /** Real-time safety check of the live transcript; returns only clear violations. */
+  moderateConversation(req: ModerationRequest): Promise<ModerationResult>;
 }
 
 export class AIUnavailableError extends Error {

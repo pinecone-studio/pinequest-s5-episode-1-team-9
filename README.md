@@ -109,12 +109,12 @@ server/   Express + Socket.IO + Drizzle ORM (Neon Postgres) + Clerk
   src/routes        auth (/me), users (onboarding/settings/profile/blocks/delete), conversations (feedback/report/block), assessment
   src/socket        Socket.IO handshake auth (Clerk session token) + event wiring
   src/services
-    ai/             provider-agnostic interface + Anthropic implementation, prompts, schemas
+    ai/             provider-agnostic interface + Anthropic/Gemini implementations, prompts, schemas
     speech/         speech-to-text layer (separate from AI analysis), segment sanitizing
     matchmaking/    pure pairing algorithm (unit-tested) + in-memory queue service
     rooms/          room lifecycle, WebRTC signaling relay, topics, transcript ingestion
     feedback/       deterministic fluency metrics + AI analysis → per-user reports
-    moderation/     report / block / auto-suspension
+    moderation/     reports, blocks, crowd-based and real-time AI auto-suspension
     profile/        stats and progress trends
 web/      Next.js (App Router) + Tailwind v4 + shadcn/ui
   src/app           /, /login, /signup, /onboarding, /assessment, /match, /room/[roomId],
@@ -145,9 +145,9 @@ Fluency numbers are computed in code, not by the model. These are word or charac
 - **Speaking rate is approximate.** It's based on when the recognizer first and last heard each phrase.
 - **NAT traversal:** STUN alone fails on some corporate or mobile networks. Set `TURN_URL`, `TURN_USERNAME` and `TURN_CREDENTIAL` for production.
 - **Single process:** the matchmaking queue and room state live in memory. To scale out, move them to Redis and add the Socket.IO Redis adapter.
-- **Moderation is basic:** reports, blocks, automatic 24-hour suspension after `MODERATION_AUTO_SUSPEND_REPORTS` distinct reporters, rate limits, and an 18+ rules agreement. There is no admin review UI or automated video/text content moderation yet.
+- **Moderation combines human reports with real-time AI text review.** Users can report or block a partner, reporting also blocks, and several distinct reporters within a day trigger a 24-hour automatic suspension. At the same time, a background sweep scans each active conversation's fresh transcript with the AI provider and, when it clearly detects harassment, sexual, hate, minor-solicitation or spam content, files a report (as the reserved `LinguaMatch_AI` account, marked with an `aiFlag`) and suspends the offender for `AI_MODERATION_SUSPEND_DAYS` days, ending the call. **Only text is moderated** — video and audio are peer-to-peer and never reach the server, so visual content cannot be checked without adding a media pipeline. AI moderation is conservative (severity/confidence thresholds) but not perfect; human review of every AI report remains the backstop.
 
 ## Roadmap (after MVP)
 
-Pronunciation API, admin moderation dashboard, Redis-backed queue, interest-based topics, streaks and gamification, more languages, and a Clerk `user.deleted` webhook so accounts deleted from the Clerk dashboard are cleaned up too.
+Pronunciation API, Redis-backed queue, interest-based topics, streaks and gamification, more languages, video/audio content moderation (needs a media pipeline), and a Clerk `user.deleted` webhook so accounts deleted from the Clerk dashboard are cleaned up too.
 # LinguaMatch

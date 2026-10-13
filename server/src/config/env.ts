@@ -39,6 +39,22 @@ const EnvSchema = z.object({
   /** Distinct reporters within 24h that trigger an automatic temporary suspension. */
   MODERATION_AUTO_SUSPEND_REPORTS: z.coerce.number().int().positive().default(3),
 
+  /** Real-time AI moderation of conversation transcripts (auto-report + temporary suspension). */
+  AI_MODERATION_ENABLED: z
+    .enum(["true", "false", "1", "0"])
+    .default("true")
+    .transform((v) => v === "true" || v === "1"),
+  /** How often each active conversation's new transcript is scanned, in seconds. */
+  AI_MODERATION_INTERVAL_SECONDS: z.coerce.number().int().min(5).default(30),
+  /** Minimum new utterances since the last scan before a conversation is checked. */
+  AI_MODERATION_MIN_SEGMENTS: z.coerce.number().int().min(1).default(4),
+  /** Suspension length applied automatically when AI flags a violation. */
+  AI_MODERATION_SUSPEND_DAYS: z.coerce.number().int().positive().default(14),
+  /** Minimum severity for an AI finding to be acted on. */
+  AI_MODERATION_MIN_SEVERITY: z.enum(["low", "medium", "high"]).default("medium"),
+  /** Minimum model confidence required before acting on a finding. */
+  AI_MODERATION_MIN_CONFIDENCE: z.enum(["low", "medium", "high"]).default("medium"),
+
   /**
    * Comma-separated emails that are promoted to admin at first sign-in (and on every auth
    * check until they have the role), so you can bootstrap the first administrator.

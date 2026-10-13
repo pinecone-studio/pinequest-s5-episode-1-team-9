@@ -6,16 +6,19 @@ import {
   ANALYSIS_SYSTEM,
   ASSESSMENT_EVAL_SYSTEM,
   ASSESSMENT_SYSTEM,
+  MODERATION_SYSTEM,
   TOPIC_SYSTEM,
   analysisUserPrompt,
   assessmentEvalUserPrompt,
   assessmentUserPrompt,
+  moderationUserPrompt,
   topicUserPrompt,
 } from "./prompts";
 import {
   AssessmentQuestionsSchema,
   AssessmentResultSchema,
   ConversationAnalysisSchema,
+  ModerationSchema,
   TopicSchema,
   clampScore,
 } from "./schemas";
@@ -122,5 +125,16 @@ export class AnthropicProvider implements AIProvider {
       mistakes: out.mistakes.slice(0, 10),
       exercises: out.exercises.slice(0, 5),
     };
+  }
+
+  async moderateConversation(req: Parameters<AIProvider["moderateConversation"]>[0]) {
+    const out = await this.structured({
+      system: MODERATION_SYSTEM,
+      user: moderationUserPrompt(req),
+      schema: ModerationSchema,
+      effort: "medium",
+      maxTokens: 4000,
+    });
+    return { findings: out.findings.slice(0, 20) };
   }
 }
