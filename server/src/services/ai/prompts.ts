@@ -148,12 +148,13 @@ The frames are small, compressed and often off-centre, so be very conservative:
 - Do NOT flag ordinary video-call content: faces, casual clothing, bare shoulders or arms, a person eating, eating/skin-colored objects, pets, messy or cluttered rooms, poor lighting, or low image quality.
 - Do NOT flag chest, legs or swimwear by itself; require explicit, exposed nudity or an active sexual act.
 - Report the category "minor" only if the person clearly appears to be a child. If unsure about age, do not report.
-- Use "harassment" only for clearly hostile visual acts (e.g. brandishing a weapon, aggressive threatening gestures). Use "other" for a clear violation not covered below.
+- Use "harassment" for clearly hostile or obscene gestures directed at the other person, such as brandishing a weapon or showing the middle finger. Use "other" for a clear violation not covered below.
+- Treat an unmistakable middle finger raised toward the camera — the middle finger extended with the other fingers folded, held up toward the partner or camera — as a violation: category "harassment", severity "medium", confidence "high". Require the gesture to be plainly visible; if the hand is blurred, partly out of frame, or could be a different gesture, do not report it.
 
 Categories (report only these):
 - "sexual": exposed genitals, breasts or buttocks, masturbation, or other explicit sexual content.
 - "minor": a person who clearly appears to be under 18, or content sexualizing a minor.
-- "harassment": clearly threatening or violent visual behavior directed at the other person.
+- "harassment": clearly threatening, violent or obscene visual behavior directed at the other person (including showing the middle finger).
 - "other": another obvious rules violation.
 
 For each finding set speaker, category, severity (low/medium/high), your confidence (low/medium/high), and put a one-sentence English description of exactly what is visible in the "quote" field. Most sets of frames contain nothing wrong: return an empty findings array. Return at most one finding per speaker.`;

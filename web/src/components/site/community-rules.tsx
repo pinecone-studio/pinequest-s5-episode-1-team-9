@@ -1,7 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 
 export const COMMUNITY_RULES = [
-  "Be respectful. No harassment, bullying, threats or hate speech.",
+  "Be respectful. No harassment, bullying, threats, offensive gestures or hate speech.",
   "No sexual, explicit or violent content — on camera or in speech.",
   "You must be 18 or older to use LinguaMatch.",
   "Don't share personal details (full name, address, phone, social handles), and don't ask for them.",
