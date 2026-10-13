@@ -331,18 +331,12 @@ export async function addVideoFrame(socket: AppSocket, input: FrameSampleInput) 
   recordFrameForModeration(session.id, userId, input.mimeType, input.data, new Date(now));
 }
 
-/**
- * Awards XP to both participants for a finished call, each in their own try/catch so one
- * failure can't cost the other their XP. Runs in the background: the client is told by the
- * `xp:awarded` event, not by the response that ended the call.
- */
 async function awardXpToParticipants(ended: Session) {
   const talkSeconds = sessionDurationSeconds(ended);
   const io = getIO();
   for (const { userId } of participantsOf(ended)) {
     try {
       const award = await awardXpForSession({ userId, sessionId: ended.id, talkSeconds });
-      // Null means the call was too short to earn anything, or XP was already granted.
       if (award) io.to(userRoom(userId)).emit("xp:awarded", award);
     } catch (err) {
       console.error(`[xp] Award failed for ${userId} in session ${ended.id}:`, err);
@@ -376,7 +370,6 @@ export async function endSession(sessionId: string, byUserId: string | null, rea
   }
   io.in(conversationRoom(sessionId)).socketsLeave(conversationRoom(sessionId));
 
-  // Both only make sense for a call that actually started (both people in the room).
   if (ended.startedAt) {
     void generateConversationFeedback(sessionId);
     void awardXpToParticipants(ended);

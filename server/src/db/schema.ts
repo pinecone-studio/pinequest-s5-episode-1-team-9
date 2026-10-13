@@ -39,7 +39,6 @@ export const MISTAKE_CATEGORIES = ["grammar", "vocabulary", "sentence_structure"
 export const FEEDBACK_STATUSES = ["pending", "ready", "insufficient_data", "no_consent", "failed"] as const;
 export const REPORT_STATUSES = ["open", "under_review", "actioned", "dismissed"] as const;
 export const BAN_SOURCES = ["automatic", "moderator"] as const;
-/** Why XP moved. `skip_penalty` is the only negative one. */
 export const XP_REASONS = ["call", "streak", "skip_penalty"] as const;
 export const ADMIN_ACTIONS = [
   "ban_user",
@@ -83,12 +82,9 @@ export const users = pgTable(
     level: text("level").generatedAlwaysAs(
       sql`jsonb_path_query_first(target_languages, '$[*] ? (@.language == $l).level', jsonb_object(ARRAY['l', target_lang])) #>> '{}'`,
     ),
-    /** Gamification XP. Unrelated to `level` above, which is the generated CEFR column. */
     xp: integer("xp").notNull().default(0),
-    /** XP tier, 1-based. L2 starts at 400 XP — see services/xp/levels.ts. */
     xpLevel: integer("xp_level").notNull().default(1),
     streakCount: integer("streak_count").notNull().default(0),
-    /** Calendar day (in XP_TIMEZONE, not UTC) of the last call that counted for the streak. */
     lastCallDate: date("last_call_date"),
     /** Confirmed 18+ together with the community rules. */
     isAdult: boolean("is_adult").notNull().default(false),
@@ -105,7 +101,6 @@ export const users = pgTable(
     check("users_id_not_blank", sql`length(${t.id}) > 0`),
     check("users_name_format", sql`${t.name} ~ '^[A-Za-z0-9_]{3,24}$'`),    check("users_role_check", oneOf(t.role, USER_ROLES)),
     check("users_target_languages_is_array", sql`jsonb_typeof(${t.targetLanguages}) = 'array'`),
-    /** The skip penalty floors at zero rather than going negative. */
     check("users_xp_nonnegative", sql`${t.xp} >= 0`),
     check("users_xp_level_positive", sql`${t.xpLevel} >= 1`),
     check("users_streak_nonnegative", sql`${t.streakCount} >= 0`),
@@ -375,7 +370,6 @@ export const mistakes = pgTable(
   ],
 );
 
-/** Append-only ledger of every XP change, so `users.xp` can always be re-derived. */
 export const xpEvents = pgTable(
   "xp_events",
   {
@@ -383,28 +377,16 @@ export const xpEvents = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    /**
-     * Not null on purpose: the unique index below is what makes awarding idempotent, and
-     * Postgres treats NULLs as distinct in a unique index, so a nullable column would
-     * silently allow duplicate awards.
-     */
     sessionId: uuid("session_id")
       .notNull()
       .references(() => sessions.id, { onDelete: "restrict" }),
-    /** Positive for awards, negative for the skip penalty. */
     amount: integer("amount").notNull(),
     reason: text("reason", { enum: XP_REASONS }).notNull(),
     createdAt: createdAt(),
   },
   (t) => [
-    /**
-     * One award per (user, session, reason) — the target of `onConflictDoNothing` in
-     * awardXpForSession. Note this does NOT cap the daily streak bonus on its own: two
-     * calls in one day have two session ids. `users.last_call_date` enforces once-per-day.
-     */
     uniqueIndex("xp_events_user_session_reason_key").on(t.userId, t.sessionId, t.reason),
     check("xp_events_reason_check", oneOf(t.reason, XP_REASONS)),
-    /** Serves the daily-cap sum and the profile's XP history. */
     index("xp_events_user_created_idx").on(t.userId, t.createdAt),
   ],
 );

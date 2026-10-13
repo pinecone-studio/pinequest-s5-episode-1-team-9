@@ -1,6 +1,6 @@
 "use client";
 
-import { languageName, type ProfileStats } from "@linguamatch/shared";
+import { languageName, type ProfileStats, type XpSummaryDTO } from "@linguamatch/shared";
 import { ArrowRight, Clock, MessageCircle, Star, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -8,6 +8,7 @@ import { FullPageSpinner, PageShell } from "@/components/site/header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { XpBar } from "@/components/xp/xp-bar";
 import { api } from "@/lib/api";
 import { useRequireUser } from "@/lib/auth";
 import { cn, formatDuration } from "@/lib/utils";
@@ -22,10 +23,15 @@ const STATUS_LABEL: Record<string, string> = {
 export default function ProfilePage() {
   const user = useRequireUser();
   const [profile, setProfile] = useState<ProfileStats | null>(null);
+  const [xp, setXp] = useState<XpSummaryDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) api.profile().then((r) => setProfile(r.profile)).catch((e) => setError(e.message));
+  }, [user]);
+
+  useEffect(() => {
+    if (user) api.xpMe().then(setXp).catch(() => setXp(null));
   }, [user]);
 
   if (!user) return <FullPageSpinner />;
@@ -40,11 +46,14 @@ export default function ProfilePage() {
             {profile && ` · Member since ${new Date(profile.memberSince).toLocaleDateString()}`}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/match">
-            Start a conversation <ArrowRight />
-          </Link>
-        </Button>
+        <div className="flex flex-col items-start gap-4 sm:items-end">
+          <Button asChild>
+            <Link href="/match">
+              Start a conversation <ArrowRight />
+            </Link>
+          </Button>
+          {xp && <XpBar xp={xp.xp} streakCount={xp.streakCount} />}
+        </div>
       </div>
 
       {error && <p className="text-destructive mt-6 text-sm">{error}</p>}

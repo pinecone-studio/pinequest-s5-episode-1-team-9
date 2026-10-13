@@ -1,12 +1,10 @@
+import { EMOJI_UNLOCKS } from "@linguamatch/shared";
 import { Router } from "express";
 import { currentUser, requireAuth } from "../middleware/auth";
-import { EMOJI_UNLOCKS } from "../services/xp/levels";
 import { getSessionXp, getXpSummary } from "../services/xp/xpService";
 import { HttpError } from "../utils/http";
 
 export const xpRouter = Router();
-// Same as every other router: verifies the Clerk token and loads the app user row,
-// so handlers never touch req.auth directly and a deleted account can't slip through.
 xpRouter.use(requireAuth);
 
 xpRouter.get("/me", async (req, res) => {

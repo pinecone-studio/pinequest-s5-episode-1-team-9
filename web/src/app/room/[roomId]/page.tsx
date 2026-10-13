@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CoachPanel } from "@/components/room/coach-panel";
 import { BlockDialog, ReportDialog } from "@/components/room/safety-dialogs";
 import { VideoTile } from "@/components/room/video-tile";
+import { EmojiReactions } from "@/components/xp/emoji-reactions";
 import { FullPageSpinner } from "@/components/site/header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -217,7 +218,7 @@ export default function RoomPage() {
       )}
 
       <main className="grid flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-[1fr_360px]">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="relative grid gap-4 md:grid-cols-2">
           {/* LEFT: you */}
           <VideoTile
             stream={media.stream}
@@ -244,6 +245,7 @@ export default function RoomPage() {
               ) : undefined
             }
           />
+          {info && !ended && <EmojiReactions socket={socket} roomId={roomId} myUserId={user.id} />}
         </div>
 
         {/* SIDEBAR: AI coach */}

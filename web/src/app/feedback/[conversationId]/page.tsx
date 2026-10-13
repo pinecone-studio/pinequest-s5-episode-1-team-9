@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { XpAwardBanner } from "@/components/xp/xp-award-banner";
 import { api, ApiError } from "@/lib/api";
 import { useRequireUser } from "@/lib/auth";
 import { cn, formatDuration } from "@/lib/utils";
@@ -73,6 +74,8 @@ export default function FeedbackPage() {
           </Link>
         </Button>
       </div>
+
+      <XpAwardBanner sessionId={conversationId} />
 
       {error && (
         <Alert variant="destructive" className="mt-8">

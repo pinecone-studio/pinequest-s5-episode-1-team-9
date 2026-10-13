@@ -1,7 +1,3 @@
-import type { XpAward } from "@linguamatch/shared";
-import { and, eq, gt, sql } from "drizzle-orm";
-import { db } from "../../db/client";
-import { users, xpEvents } from "../../db/schema";
 import {
   STREAK_BONUS_XP,
   XP_TIMEZONE,
@@ -14,7 +10,11 @@ import {
   nextStreak,
   unlockedEmojis,
   xpForTalkTime,
-} from "./levels";
+  type XpAward,
+} from "@linguamatch/shared";
+import { and, eq, gt, sql } from "drizzle-orm";
+import { db } from "../../db/client";
+import { users, xpEvents } from "../../db/schema";
 
 export type { XpAward };
 
@@ -26,7 +26,6 @@ async function xpEarnedToday(userId: string, today: string): Promise<number> {
       and(
         eq(xpEvents.userId, userId),
         gt(xpEvents.amount, 0),
-        // Same zone as localDate(), so the cap and the streak agree on where a day ends.
         sql`(${xpEvents.createdAt} at time zone ${XP_TIMEZONE})::date = ${today}::date`,
       ),
     );
@@ -63,7 +62,6 @@ export async function awardXpForSession(params: {
   const streakBonus = streak.bonus ? applyDailyCap(STREAK_BONUS_XP, earned + callXp) : 0;
 
   const events: (typeof xpEvents.$inferInsert)[] = [{ userId, sessionId, amount: callXp, reason: "call" }];
-  // A capped-out bonus is 0 XP, which is ledger noise rather than an award.
   if (streak.bonus && streakBonus > 0) events.push({ userId, sessionId, amount: streakBonus, reason: "streak" });
 
   const inserted = await db

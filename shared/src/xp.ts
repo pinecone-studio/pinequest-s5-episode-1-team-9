@@ -22,16 +22,13 @@ export function applyDailyCap(amount: number, earnedToday: number): number {
   return Math.max(0, Math.min(amount, DAILY_XP_CAP - earnedToday));
 }
 
-/** Cumulative XP to reach each level. Index is the level; L1 needs 0. */
 const LEVEL_GOALS = [0, 0, 400, 900, 1500, 2200, 3000] as const;
-/** Last explicit tier (L6). Indexing with this literal keeps the type `number`. */
 const TOP_TIER = 6;
 const TOP_TIER_GOAL = LEVEL_GOALS[TOP_TIER];
 const GOAL_STEP_AFTER_L6 = 900;
 
 export function levelGoal(level: number): number {
   if (level <= 1) return 0;
-  // Past L6 the goal grows by a fixed step. `??` only fires for out-of-range levels.
   return LEVEL_GOALS[level] ?? TOP_TIER_GOAL + (level - TOP_TIER) * GOAL_STEP_AFTER_L6;
 }
 

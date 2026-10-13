@@ -1,15 +1,11 @@
+import { canUseEmoji } from "@linguamatch/shared";
 import { isUuid } from "../db/client";
-import { canUseEmoji } from "../services/xp/levels";
 import { getXpLevel } from "../services/xp/xpService";
 import { conversationRoom, type AppSocket, type IO } from "./io";
 
 const RATE_LIMIT_MS = 2000;
 const LEVEL_CACHE_MS = 60_000;
 
-/**
- * Emoji reactions, gated by the sender's xp_level. Reactions are relayed to the
- * conversation room and never stored — they're ephemeral, like the call itself.
- */
 export function registerEmojiHandlers(io: IO, socket: AppSocket) {
   socket.on("emoji:send", async (payload, ack) => {
     const reply = typeof ack === "function" ? ack : () => {};
@@ -20,7 +16,6 @@ export function registerEmojiHandlers(io: IO, socket: AppSocket) {
       return reply({ ok: false, error: "invalid" });
     }
 
-    // joinRoom() puts the socket in `conversation:<id>`, not in the bare room id.
     const room = conversationRoom(roomId);
     if (!socket.rooms.has(room)) return reply({ ok: false, error: "not_in_room" });
 

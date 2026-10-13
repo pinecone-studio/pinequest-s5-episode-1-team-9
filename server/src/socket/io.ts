@@ -3,9 +3,7 @@ import type { Server, Socket } from "socket.io";
 
 export interface SocketData {
   userId: string;
-  /** Epoch ms of this socket's last emoji, for per-socket rate limiting. */
   lastEmojiAt?: number;
-  /** Short-lived xp_level cache so every reaction doesn't hit the database. */
   xpLevelCache?: { level: number; at: number };
 }
 
