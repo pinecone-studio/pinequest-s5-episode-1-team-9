@@ -19,9 +19,12 @@ export interface MatchOptions {
   maxLevelDistance: number;
   /** Each step of level tolerance unlocks after this many more seconds of waiting. */
   expandAfterSeconds: number;
-  /** How many recent partners to avoid. The single most recent partner is always avoided. */
+  /** How many recent partners to avoid. The single most recent partner is always in the window. */
   recentPartnerWindow: number;
-  /** After waiting this long, older recent partners (not the last one) become acceptable. */
+  /**
+   * After both have waited this long, recent partners (the last one included) become acceptable.
+   * Without it, two people alone in the queue who met once could never be matched again.
+   */
   recentPartnerGraceSeconds: number;
 }
 
@@ -49,9 +52,8 @@ export function allowedLevelDistance(entry: QueueEntry, now: number, opts: Match
   return Math.min(steps, opts.maxLevelDistance);
 }
 
-function isRecent(entry: QueueEntry, other: QueueEntry, opts: MatchOptions): { last: boolean; recent: boolean } {
-  const window = entry.recentPartners.slice(0, Math.max(1, opts.recentPartnerWindow));
-  return { last: entry.recentPartners[0] === other.userId, recent: window.includes(other.userId) };
+function isRecent(entry: QueueEntry, other: QueueEntry, opts: MatchOptions): boolean {
+  return entry.recentPartners.slice(0, Math.max(1, opts.recentPartnerWindow)).includes(other.userId);
 }
 
 /** Returns the level distance if a and b may be paired now, otherwise null. */
@@ -65,10 +67,7 @@ export function compatibility(a: QueueEntry, b: QueueEntry, now: number, opts: M
   const tolerance = Math.max(allowedLevelDistance(a, now, opts), allowedLevelDistance(b, now, opts));
   if (distance > tolerance) return null;
 
-  const ra = isRecent(a, b, opts);
-  const rb = isRecent(b, a, opts);
-  if (ra.last || rb.last) return null;
-  if (ra.recent || rb.recent) {
+  if (isRecent(a, b, opts) || isRecent(b, a, opts)) {
     const bothPatient =
       waitedSeconds(a, now) >= opts.recentPartnerGraceSeconds && waitedSeconds(b, now) >= opts.recentPartnerGraceSeconds;
     if (!bothPatient) return null;
@@ -94,7 +93,7 @@ export function findMatches(entries: QueueEntry[], now: number, opts: MatchOptio
       if (b === a || taken.has(b.userId)) continue;
       const distance = compatibility(a, b, now, opts);
       if (distance === null) continue;
-      const recent = isRecent(a, b, opts).recent || isRecent(b, a, opts).recent;
+      const recent = isRecent(a, b, opts) || isRecent(b, a, opts);
       const better =
         !best ||
         distance < best.distance ||
