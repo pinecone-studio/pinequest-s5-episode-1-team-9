@@ -3,6 +3,8 @@ import type { Server, Socket } from "socket.io";
 
 export interface SocketData {
   userId: string;
+  lastEmojiAt?: number;
+  xpLevelCache?: { level: number; at: number };
 }
 
 export type IO = Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;

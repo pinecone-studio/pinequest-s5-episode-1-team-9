@@ -13,8 +13,10 @@ import {
   bigint,
   boolean,
   check,
+  date,
   foreignKey,
   index,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
@@ -37,6 +39,7 @@ export const MISTAKE_CATEGORIES = ["grammar", "vocabulary", "sentence_structure"
 export const FEEDBACK_STATUSES = ["pending", "ready", "insufficient_data", "no_consent", "failed"] as const;
 export const REPORT_STATUSES = ["open", "under_review", "actioned", "dismissed"] as const;
 export const BAN_SOURCES = ["automatic", "moderator"] as const;
+export const XP_REASONS = ["call", "streak", "skip_penalty"] as const;
 export const ADMIN_ACTIONS = [
   "ban_user",
   "revoke_ban",
@@ -79,6 +82,10 @@ export const users = pgTable(
     level: text("level").generatedAlwaysAs(
       sql`jsonb_path_query_first(target_languages, '$[*] ? (@.language == $l).level', jsonb_object(ARRAY['l', target_lang])) #>> '{}'`,
     ),
+    xp: integer("xp").notNull().default(0),
+    xpLevel: integer("xp_level").notNull().default(1),
+    streakCount: integer("streak_count").notNull().default(0),
+    lastCallDate: date("last_call_date"),
     /** Confirmed 18+ together with the community rules. */
     isAdult: boolean("is_adult").notNull().default(false),
     transcriptionConsent: boolean("transcription_consent").notNull().default(false),
@@ -94,6 +101,9 @@ export const users = pgTable(
     check("users_id_not_blank", sql`length(${t.id}) > 0`),
     check("users_name_format", sql`${t.name} ~ '^[A-Za-z0-9_]{3,24}$'`),    check("users_role_check", oneOf(t.role, USER_ROLES)),
     check("users_target_languages_is_array", sql`jsonb_typeof(${t.targetLanguages}) = 'array'`),
+    check("users_xp_nonnegative", sql`${t.xp} >= 0`),
+    check("users_xp_level_positive", sql`${t.xpLevel} >= 1`),
+    check("users_streak_nonnegative", sql`${t.streakCount} >= 0`),
   ],
 );
 
@@ -357,6 +367,27 @@ export const mistakes = pgTable(
     index("mistakes_session_user_idx").on(t.sessionId, t.userId, t.position),
     index("mistakes_user_category_idx").on(t.userId, t.category, t.createdAt),
     index("mistakes_transcript_line_idx").on(t.transcriptLineId),
+  ],
+);
+
+export const xpEvents = pgTable(
+  "xp_events",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "restrict" }),
+    amount: integer("amount").notNull(),
+    reason: text("reason", { enum: XP_REASONS }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("xp_events_user_session_reason_key").on(t.userId, t.sessionId, t.reason),
+    check("xp_events_reason_check", oneOf(t.reason, XP_REASONS)),
+    index("xp_events_user_created_idx").on(t.userId, t.createdAt),
   ],
 );
 

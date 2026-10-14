@@ -86,6 +86,44 @@ export interface FrameSampleInput {
 
 export type RoomEndReason = "ended" | "next" | "partner_left" | "disconnected" | "blocked" | "reported";
 
+export interface XpAward {
+  sessionId: string;
+  xpGained: number;
+  callXp: number;
+  streakBonus: number;
+  cappedByDailyLimit: boolean;
+  totalXp: number;
+  xpLevel: number;
+  leveledUp: boolean;
+  newEmojis: string[];
+  streakCount: number;
+}
+
+export type EmojiSendResult =
+  | { ok: true }
+  | { ok: false; error: "invalid" | "not_in_room" | "rate_limited" | "locked" };
+
+export interface XpSummaryDTO {
+  level: number;
+  xp: number;
+  currentGoal: number;
+  nextGoal: number;
+  xpIntoLevel: number;
+  xpToNext: number;
+  progress: number;
+  streakCount: number;
+  unlockedEmojis: string[];
+  earnedToday: number;
+  emojiUnlocks: Record<number, readonly string[]>;
+}
+
+export type XpSessionDTO = Omit<XpSummaryDTO, "emojiUnlocks"> & {
+  xpGained: number;
+  streakBonus: number;
+  leveledUp: boolean;
+  newEmojis: string[];
+};
+
 export interface ClientToServerEvents {
   "queue:join": (payload: { targetLanguage: string }) => void;
   "queue:leave": () => void;
@@ -95,6 +133,7 @@ export interface ClientToServerEvents {
   "topic:request": (payload: { roomId: string }) => void;
   "transcript:segment": (payload: TranscriptSegmentInput) => void;
   "frame:sample": (payload: FrameSampleInput) => void;
+  "emoji:send": (payload: { roomId: string; emoji: string }, ack?: (result: EmojiSendResult) => void) => void;
 }
 
 export interface ServerToClientEvents {
@@ -116,6 +155,8 @@ export interface ServerToClientEvents {
   "room:error": (payload: { message: string }) => void;
   signal: (payload: { roomId: string; data: SignalPayload }) => void;
   "topic:update": (payload: { topic: Topic | null; loading: boolean; error?: string }) => void;
+  "xp:awarded": (payload: XpAward) => void;
+  "emoji:reaction": (payload: { emoji: string; fromUserId: string; at: number }) => void;
 }
 
 export interface RTCIceServerLike {

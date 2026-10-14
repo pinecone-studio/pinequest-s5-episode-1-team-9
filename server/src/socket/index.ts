@@ -16,6 +16,7 @@ import {
   requestTopic,
 } from "../services/rooms/roomService";
 import { logAuthFailure, verifySessionToken } from "../utils/auth";
+import { registerEmojiHandlers } from "./emojiHandlers";
 import { setIO, userRoom, type AppSocket, type IO } from "./io";
 
 export let matchmaker: Matchmaker;
@@ -75,6 +76,7 @@ export function createSocketServer(httpServer: HttpServer): IO {
   io.on("connection", (socket: AppSocket) => {
     const userId = socket.data.userId;
     void socket.join(userRoom(userId));
+    registerEmojiHandlers(io, socket);
 
     socket.on(
       "queue:join",

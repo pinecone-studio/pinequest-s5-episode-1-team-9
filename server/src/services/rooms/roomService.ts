@@ -3,13 +3,21 @@ import { and, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { iceServers } from "../../config/env";
 import { db, isUuid } from "../../db/client";
 import { recentPartners, sessions, transcriptLines, users } from "../../db/schema";
-import { findSession, involvesUser, participantOf, participantsOf, type Session } from "../../models/Session";
+import {
+  findSession,
+  involvesUser,
+  participantOf,
+  participantsOf,
+  sessionDurationSeconds,
+  type Session,
+} from "../../models/Session";
 import { conversationRoom, getIO, userRoom, type AppSocket } from "../../socket/io";
 import { generateConversationFeedback } from "../feedback/feedbackService";
 import type { MatchPair } from "../matchmaking/algorithm";
 import { clearModerationBuffer, recordForModeration, recordFrameForModeration } from "../moderation/aiModerationQueue";
 import { sanitizeSegment } from "../speech";
 import { pickRandomTopic } from "../topics/topicBank";
+import { awardXpForSession } from "../xp/xpService";
 
 const RECONNECT_GRACE_MS = 20_000;
 const JOIN_TIMEOUT_MS = 45_000;
@@ -323,6 +331,19 @@ export async function addVideoFrame(socket: AppSocket, input: FrameSampleInput) 
   recordFrameForModeration(session.id, userId, input.mimeType, input.data, new Date(now));
 }
 
+async function awardXpToParticipants(ended: Session) {
+  const talkSeconds = sessionDurationSeconds(ended);
+  const io = getIO();
+  for (const { userId } of participantsOf(ended)) {
+    try {
+      const award = await awardXpForSession({ userId, sessionId: ended.id, talkSeconds });
+      if (award) io.to(userRoom(userId)).emit("xp:awarded", award);
+    } catch (err) {
+      console.error(`[xp] Award failed for ${userId} in session ${ended.id}:`, err);
+    }
+  }
+}
+
 /** Ends a session exactly once, notifies both users and starts feedback. */
 export async function endSession(sessionId: string, byUserId: string | null, reason: RoomEndReason) {
   const [ended] = isUuid(sessionId)
@@ -349,5 +370,8 @@ export async function endSession(sessionId: string, byUserId: string | null, rea
   }
   io.in(conversationRoom(sessionId)).socketsLeave(conversationRoom(sessionId));
 
-  if (ended.startedAt) void generateConversationFeedback(sessionId);
+  if (ended.startedAt) {
+    void generateConversationFeedback(sessionId);
+    void awardXpToParticipants(ended);
+  }
 }

@@ -9,6 +9,8 @@ import type {
   FeedbackDTO,
   ProfileStats,
   UserDTO,
+  XpSessionDTO,
+  XpSummaryDTO,
 } from "@linguamatch/shared";
 
 export class ApiError extends Error {
@@ -149,6 +151,9 @@ export const api = {
   report: (conversationId: string, reason: string, details: string) =>
     request<{ ok: true }>(`/conversations/${conversationId}/report`, { body: { reason, details } }),
   block: (conversationId: string) => request<{ ok: true }>(`/conversations/${conversationId}/block`, { body: {} }),
+
+  xpMe: () => request<XpSummaryDTO>("/xp/me"),
+  xpSession: (conversationId: string) => request<XpSessionDTO>(`/xp/session/${conversationId}`),
 
   // The assessment is stateless: the page keeps the questions and sends them back with the answers.
   startAssessment: (targetLanguage: string) =>
