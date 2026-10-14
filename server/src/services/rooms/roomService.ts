@@ -1,6 +1,5 @@
 import { lowerLevel, type FrameSampleInput, type RoomEndReason, type SignalPayload, type Topic, type TranscriptSegmentInput } from "@linguamatch/shared";
 import { and, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
-import { iceServers } from "../../config/env";
 import { db, isUuid } from "../../db/client";
 import { recentPartners, sessions, transcriptLines, users } from "../../db/schema";
 import {
@@ -15,6 +14,7 @@ import { conversationRoom, getIO, userRoom, type AppSocket } from "../../socket/
 import { generateConversationFeedback } from "../feedback/feedbackService";
 import type { MatchPair } from "../matchmaking/algorithm";
 import { clearModerationBuffer, recordForModeration, recordFrameForModeration } from "../moderation/aiModerationQueue";
+import { iceServers } from "../rtc/iceServers";
 import { sanitizeSegment } from "../speech";
 import { pickRandomTopic } from "../topics/topicBank";
 import { awardXpForSession } from "../xp/xpService";
@@ -171,6 +171,7 @@ export async function joinRoom(socket: AppSocket, sessionId: string) {
     .from(users)
     .where(inArray(users.id, [session.userA, session.userB]));
   const profileOf = new Map(profiles.map((p) => [p.id, p]));
+  const servers = await iceServers();
 
   // (Re)start the call for both sides. On a refresh this also resets the other peer's connection.
   const io = getIO();
@@ -192,7 +193,7 @@ export async function joinRoom(socket: AppSocket, sessionId: string) {
       yourLevel: p.level,
       startedAt: session.startedAt!.toISOString(),
       topic,
-      iceServers: iceServers(),
+      iceServers: servers,
     });
   });
   // The first topic is generated at match time, before anyone is in the room, so replay its state.

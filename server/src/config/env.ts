@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { createHmac } from "node:crypto";
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -28,6 +27,9 @@ const EnvSchema = z.object({
   STUN_URLS: z.string().default("stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302"),
   TURN_URL: z.string().optional(),
   TURN_SHARED_SECRET: z.string().optional(),
+  /** Cloudflare Realtime TURN key (Dashboard → Realtime → TURN). Takes precedence over TURN_URL. */
+  CLOUDFLARE_TURN_KEY_ID: z.string().min(1).optional(),
+  CLOUDFLARE_TURN_API_TOKEN: z.string().min(1).optional(),
 
   /** Max CEFR distance the matcher will ever accept after expanding (1 = A2↔B1 allowed). */
   MATCH_MAX_LEVEL_DISTANCE: z.coerce.number().int().min(0).max(5).default(1),
@@ -104,15 +106,3 @@ export const clerkAuthorizedParties: string[] | undefined = isProd ? [...allowed
 
 /** Requests without an Origin header (same-origin GETs, curl, health checks) are not cross-site and are allowed. */
 export const isAllowedOrigin = (origin: string | undefined) => !origin || allowedOrigins.has(origin);
-
-export function iceServers() {
-  const servers: { urls: string | string[]; username?: string; credential?: string }[] = [
-    { urls: env.STUN_URLS.split(",").map((s) => s.trim()).filter(Boolean) },
-  ];
-  if (env.TURN_URL && env.TURN_SHARED_SECRET) {
-    const username = `${Math.floor(Date.now() / 1000) + 86_400}:linguamatch`;
-    const credential = createHmac("sha1", env.TURN_SHARED_SECRET).update(username).digest("base64");
-    servers.push({ urls: env.TURN_URL, username, credential });
-  }
-  return servers;
-}

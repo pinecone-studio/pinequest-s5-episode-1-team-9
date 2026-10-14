@@ -1,0 +1,8 @@
+# web/next.config.ts loads ../.env, so a local .env must never be uploaded to Vercel.
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+web/.next
+server/drizzle
