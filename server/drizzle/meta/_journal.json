@@ -43,6 +43,13 @@
       "when": 1791947779112,
       "tag": "0005_xp_system",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791950233404,
+      "tag": "0006_woozy_lenny_balinger",
+      "breakpoints": true
     }
   ]
 }
