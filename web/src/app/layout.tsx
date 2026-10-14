@@ -2,6 +2,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { IncomingCallDialog } from "@/components/friends/incoming-call-dialog";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
@@ -25,7 +26,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           signUpFallbackRedirectUrl="/onboarding"
           afterSignOutUrl="/"
         >
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            <IncomingCallDialog />
+          </AuthProvider>
         </ClerkProvider>
       </body>
     </html>

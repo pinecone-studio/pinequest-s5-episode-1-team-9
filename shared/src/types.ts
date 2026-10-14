@@ -124,6 +124,50 @@ export type XpSessionDTO = Omit<XpSummaryDTO, "emojiUnlocks"> & {
   newEmojis: string[];
 };
 
+export type FriendshipStatus = "pending" | "accepted";
+
+export interface FriendDTO {
+  id: string;
+  username: string;
+  nativeLanguage: string | null;
+  online: boolean;
+  busy: boolean;
+}
+
+export interface FriendRequestDTO {
+  id: string;
+  username: string;
+  createdAt: string;
+}
+
+export interface FriendRequestsDTO {
+  incoming: FriendRequestDTO[];
+  outgoing: FriendRequestDTO[];
+}
+
+export interface UserSearchResultDTO {
+  id: string;
+  username: string;
+  nativeLanguage: string | null;
+  friendship: FriendshipStatus | null;
+  iAmRequester: boolean;
+}
+
+export type FriendCallStatus =
+  | "ringing"
+  | "accepted"
+  | "declined"
+  | "unavailable"
+  | "timeout"
+  | "cancelled";
+
+export interface FriendCallInvite {
+  inviteId: string;
+  from: { id: string; username: string };
+  targetLanguage: string;
+  expiresInSeconds: number;
+}
+
 export interface ClientToServerEvents {
   "queue:join": (payload: { targetLanguage: string }) => void;
   "queue:leave": () => void;
@@ -134,6 +178,10 @@ export interface ClientToServerEvents {
   "transcript:segment": (payload: TranscriptSegmentInput) => void;
   "frame:sample": (payload: FrameSampleInput) => void;
   "emoji:send": (payload: { roomId: string; emoji: string }, ack?: (result: EmojiSendResult) => void) => void;
+  "friend:call": (payload: { friendId: string }) => void;
+  "friend:accept": (payload: { inviteId: string }) => void;
+  "friend:decline": (payload: { inviteId: string }) => void;
+  "friend:cancel": (payload: { inviteId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -157,6 +205,14 @@ export interface ServerToClientEvents {
   "topic:update": (payload: { topic: Topic | null; loading: boolean; error?: string }) => void;
   "xp:awarded": (payload: XpAward) => void;
   "emoji:reaction": (payload: { emoji: string; fromUserId: string; at: number }) => void;
+  "friend:incoming": (payload: FriendCallInvite) => void;
+  "friend:call-status": (payload: {
+    inviteId: string;
+    status: FriendCallStatus;
+    roomId?: string;
+    message?: string;
+  }) => void;
+  "friend:incoming-cancelled": (payload: { inviteId: string }) => void;
 }
 
 export interface RTCIceServerLike {
