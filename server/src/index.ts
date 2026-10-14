@@ -9,6 +9,7 @@ import { adminRouter } from "./routes/admin";
 import { assessmentRouter } from "./routes/assessment";
 import { authRouter } from "./routes/auth";
 import { conversationsRouter } from "./routes/conversations";
+import { friendsRouter } from "./routes/friends";
 import { usersRouter } from "./routes/users";
 import { xpRouter } from "./routes/xp";
 import { isAIConfigured } from "./services/ai";
@@ -63,6 +64,7 @@ async function main() {
   app.use("/api/conversations", conversationsRouter);
   app.use("/api/assessment", assessmentRouter);
   app.use("/api/xp", xpRouter);
+  app.use("/api/friends", friendsRouter);
   app.use("/api", (_req, res) => {
     res.status(404).json({ error: "Not found" });
   });

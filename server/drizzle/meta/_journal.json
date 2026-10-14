@@ -50,6 +50,13 @@
       "when": 1791950233404,
       "tag": "0006_woozy_lenny_balinger",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791951683885,
+      "tag": "0007_faulty_freak",
+      "breakpoints": true
     }
   ]
 }

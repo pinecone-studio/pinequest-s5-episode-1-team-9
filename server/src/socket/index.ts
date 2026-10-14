@@ -4,6 +4,14 @@ import { Server } from "socket.io";
 import { isAllowedOrigin } from "../config/env";
 import { isUuid as isRoomId } from "../db/client";
 import { Matchmaker, QueueError } from "../services/matchmaking/matchmaker";
+import {
+  acceptCall,
+  cancelCall,
+  cancelCallsFor,
+  declineCall,
+  setQueuedCheck,
+  startCall,
+} from "../services/friends/friendCalls";
 import { findOrCreateUser } from "../models/User";
 import {
   addTranscriptSegment,
@@ -72,6 +80,7 @@ export function createSocketServer(httpServer: HttpServer): IO {
 
   matchmaker = new Matchmaker(createSessionFromMatch);
   matchmaker.start();
+  setQueuedCheck((userId) => matchmaker.isWaiting(userId));
 
   io.on("connection", (socket: AppSocket) => {
     const userId = socket.data.userId;
@@ -141,12 +150,43 @@ export function createSocketServer(httpServer: HttpServer): IO {
     );
 
     socket.on(
+      "friend:call",
+      safe(socket, async (payload) => {
+        if (typeof payload?.friendId === "string" && payload.friendId) await startCall(userId, payload.friendId);
+      }),
+    );
+
+    socket.on(
+      "friend:accept",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.inviteId)) await acceptCall(userId, payload.inviteId);
+      }),
+    );
+
+    socket.on(
+      "friend:decline",
+      safe(socket, (payload) => {
+        if (isRoomId(payload?.inviteId)) declineCall(userId, payload.inviteId);
+      }),
+    );
+
+    socket.on(
+      "friend:cancel",
+      safe(socket, (payload) => {
+        if (isRoomId(payload?.inviteId)) cancelCall(userId, payload.inviteId);
+      }),
+    );
+
+    socket.on(
       "disconnect",
       safe(socket, async () => {
         handleSocketDisconnect(socket);
         // Only drop the queue entry if this was the socket that queued.
         const remaining = await io.in(userRoom(userId)).fetchSockets();
-        if (remaining.length === 0) await matchmaker.leave(userId, "expired");
+        if (remaining.length === 0) {
+          cancelCallsFor(userId);
+          await matchmaker.leave(userId, "expired");
+        }
       }),
     );
   });

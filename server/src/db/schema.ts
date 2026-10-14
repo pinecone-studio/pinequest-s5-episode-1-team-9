@@ -30,7 +30,8 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
-export const MATCHING_MODES = ["exact_level", "flexible_level"] as const;
+export const MATCHING_MODES = ["exact_level", "flexible_level", "friend"] as const;
+export const FRIENDSHIP_STATUSES = ["pending", "accepted"] as const;
 export const CALL_MODES = ["video", "voice"] as const;
 export const QUEUE_STATUSES = ["waiting", "matched", "cancelled", "expired"] as const;
 export const SESSION_STATUSES = ["pending", "active", "ended"] as const;
@@ -248,6 +249,30 @@ export const userBlocks = pgTable(
     primaryKey({ columns: [t.blockerId, t.blockedId] }),
     check("user_blocks_not_self", sql`${t.blockerId} <> ${t.blockedId}`),
     index("user_blocks_blocked_idx").on(t.blockedId),
+  ],
+);
+
+export const friendships = pgTable(
+  "friendships",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    friendId: text("friend_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status", { enum: FRIENDSHIP_STATUSES }).notNull().default("pending"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.friendId] }),
+    check("friendships_not_self", sql`${t.userId} <> ${t.friendId}`),
+    check("friendships_status_check", oneOf(t.status, FRIENDSHIP_STATUSES)),
+    uniqueIndex("friendships_pair_key").on(
+      sql`least(${t.userId}, ${t.friendId})`,
+      sql`greatest(${t.userId}, ${t.friendId})`,
+    ),
+    index("friendships_friend_status_idx").on(t.friendId, t.status),
   ],
 );
 

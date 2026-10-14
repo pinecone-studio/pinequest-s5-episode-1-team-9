@@ -375,3 +375,63 @@ export async function endSession(sessionId: string, byUserId: string | null, rea
     void awardXpToParticipants(ended);
   }
 }
+
+export async function createSessionForFriends(input: {
+  callerId: string;
+  calleeId: string;
+  lang: string;
+  callerLevel: import("@linguamatch/shared").CefrLevel;
+  calleeLevel: import("@linguamatch/shared").CefrLevel;
+  levelDistance: number;
+}): Promise<string> {
+  const matched = await db
+    .select({ id: users.id, transcriptionConsent: users.transcriptionConsent })
+    .from(users)
+    .where(inArray(users.id, [input.callerId, input.calleeId]));
+  const consent = new Map(matched.map((u) => [u.id, u.transcriptionConsent]));
+  if (consent.size !== 2) throw new Error("A friend disappeared before the call started");
+
+  const id = await db.transaction(async (tx) => {
+    const [session] = await tx
+      .insert(sessions)
+      .values({
+        userA: input.callerId,
+        userB: input.calleeId,
+        lang: input.lang,
+        userALevel: input.callerLevel,
+        userBLevel: input.calleeLevel,
+        matchingMode: "friend",
+        levelDistance: input.levelDistance,
+        userATranscriptionConsent: consent.get(input.callerId)!,
+        userBTranscriptionConsent: consent.get(input.calleeId)!,
+      })
+      .returning({ id: sessions.id });
+    const now = new Date();
+    await tx
+      .insert(recentPartners)
+      .values([
+        { userId: input.callerId, partnerId: input.calleeId, lastSessionId: session!.id, metAt: now },
+        { userId: input.calleeId, partnerId: input.callerId, lastSessionId: session!.id, metAt: now },
+      ])
+      .onConflictDoUpdate({
+        target: [recentPartners.userId, recentPartners.partnerId],
+        set: {
+          lastSessionId: sql`excluded.last_session_id`,
+          metAt: sql`excluded.met_at`,
+          matchCount: sql`${recentPartners.matchCount} + 1`,
+        },
+      });
+    return session!.id;
+  });
+
+  const state = roomState(id);
+  state.timers.set(
+    "join",
+    setTimeout(() => {
+      const absent = [input.callerId, input.calleeId].find((uid) => !state.sockets.has(uid));
+      void endSession(id, absent ?? null, "partner_left");
+    }, JOIN_TIMEOUT_MS),
+  );
+  void generateTopic(id);
+  return id;
+}

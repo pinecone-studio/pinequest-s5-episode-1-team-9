@@ -1,5 +1,5 @@
 import type { CefrLevel } from "@linguamatch/shared";
-import { eq, or } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import { db, isUuid, type DB } from "../db/client";
 import { sessions } from "../db/schema";
 
@@ -17,6 +17,15 @@ export async function findSession(id: string, tx: DB = db): Promise<Session | nu
   if (!isUuid(id)) return null;
   const [session] = await tx.select().from(sessions).where(eq(sessions.id, id));
   return session ?? null;
+}
+
+export async function hasOpenSession(userId: string, tx: DB = db): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(and(inArray(sessions.status, ["pending", "active"]), involvesUser(userId)))
+    .limit(1);
+  return Boolean(row);
 }
 
 export function participantsOf(s: Session): [Participant, Participant] {

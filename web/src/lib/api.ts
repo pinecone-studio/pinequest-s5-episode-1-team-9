@@ -7,8 +7,11 @@ import type {
   AssessmentQuestion,
   AssessmentResult,
   FeedbackDTO,
+  FriendDTO,
+  FriendRequestsDTO,
   ProfileStats,
   UserDTO,
+  UserSearchResultDTO,
   XpSessionDTO,
   XpSummaryDTO,
 } from "@linguamatch/shared";
@@ -154,6 +157,16 @@ export const api = {
 
   xpMe: () => request<XpSummaryDTO>("/xp/me"),
   xpSession: (conversationId: string) => request<XpSessionDTO>(`/xp/session/${conversationId}`),
+
+  friends: () => request<{ friends: FriendDTO[] }>("/friends"),
+  friendRequests: () => request<{ requests: FriendRequestsDTO }>("/friends/requests"),
+  searchUsers: (q: string) => request<{ results: UserSearchResultDTO[] }>(`/friends/search?q=${encodeURIComponent(q)}`),
+  sendFriendRequest: (username: string) =>
+    request<{ friend: { id: string; username: string } }>("/friends/requests", { body: { username } }),
+  acceptFriend: (userId: string) => request<{ ok: true }>(`/friends/requests/${userId}/accept`, { body: {} }),
+  declineFriend: (userId: string) => request<{ ok: true }>(`/friends/requests/${userId}/decline`, { body: {} }),
+  unfriend: (userId: string) => request<void>(`/friends/${userId}`, { method: "DELETE" }),
+  blockUser: (userId: string) => request<{ ok: true }>(`/friends/${userId}/block`, { body: {} }),
 
   // The assessment is stateless: the page keeps the questions and sends them back with the answers.
   startAssessment: (targetLanguage: string) =>
