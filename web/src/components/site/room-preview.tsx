@@ -3,6 +3,7 @@
 import { CEFR_LEVELS, languageName, type CefrLevel, type PartnerInfo } from "@linguamatch/shared";
 import { Loader2, PhoneOff, SkipForward, Video } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { VideoTile } from "@/components/room/video-tile";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,9 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getSocket, useSocketStatus, type AppSocket } from "@/lib/socket";
 import { useWebRTC } from "@/hooks/useWebRTC";
+
+/** Clerk's sign-in sends the user back to `redirect_url`, so they land here again ready to press Start. */
+const SIGN_IN_URL = `/login?redirect_url=${encodeURIComponent("/")}`;
 
 type SessionPhase =
   | "idle"
@@ -25,6 +29,7 @@ type SessionPhase =
 
 export function RoomPreview() {
   const { user, loading: authLoading, setUser } = useAuth();
+  const router = useRouter();
   const socketStatus = useSocketStatus();
   const activeLanguage = user?.activeTargetLanguage ?? "";
   const activeLevel = user?.targetLanguages.find((target) => target.language === activeLanguage)?.level ?? "";
@@ -260,8 +265,7 @@ export function RoomPreview() {
       return;
     }
     if (!user) {
-      setErrorMessage("Sign in to connect with a live conversation partner.");
-      updatePhase("error");
+      router.push(SIGN_IN_URL);
       return;
     }
     if (!user.onboarded || !activeLanguage) {
@@ -480,7 +484,7 @@ export function RoomPreview() {
             <span className="text-muted-foreground">{statusText}</span>
             {localStream && <span className="text-success">Camera and microphone active</span>}
             {!user && !authLoading && phase === "error" && (
-              <Link className="text-primary hover:underline" href="/login?next=%2F">Sign in</Link>
+              <Link className="text-primary hover:underline" href={SIGN_IN_URL}>Sign in</Link>
             )}
             {user && !user.onboarded && phase === "error" && (
               <Link className="text-primary hover:underline" href="/onboarding">Finish setup</Link>
