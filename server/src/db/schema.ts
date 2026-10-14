@@ -379,7 +379,7 @@ export const xpEvents = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     sessionId: uuid("session_id")
       .notNull()
-      .references(() => sessions.id, { onDelete: "restrict" }),
+      .references(() => sessions.id, { onDelete: "cascade" }),
     amount: integer("amount").notNull(),
     reason: text("reason", { enum: XP_REASONS }).notNull(),
     createdAt: createdAt(),
