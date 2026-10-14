@@ -1,65 +1,123 @@
 import type { ReportReason } from "@linguamatch/shared";
-import { Types } from "mongoose";
+import { and, countDistinct, desc, eq, gt, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import { env } from "../../config/env";
-import { Conversation } from "../../models/Conversation";
-import { Report } from "../../models/Report";
-import { User } from "../../models/User";
+import { db, isUniqueViolation } from "../../db/client";
+import { bans, reports, userBlocks } from "../../db/schema";
+import { findSession, partnerIdOf } from "../../models/Session";
 import { HttpError } from "../../utils/http";
-import { endConversation } from "../rooms/roomService";
+import { endSession } from "../rooms/roomService";
 
 const SUSPENSION_HOURS = 24;
 
 /**
- * Reports and blocks are addressed by conversation, never by user id, so the client
+ * Reports and blocks are addressed by session, never by user id, so the client
  * never learns a stranger's account identifier.
  */
-async function partnerIn(conversationId: string, userId: string) {
-  if (!Types.ObjectId.isValid(conversationId)) throw new HttpError(404, "Conversation not found");
-  const conversation = await Conversation.findById(conversationId).select("participants status");
-  const me = conversation?.participants.find((p) => p.userId.toString() === userId);
-  const partner = conversation?.participants.find((p) => p.userId.toString() !== userId);
-  if (!conversation || !me || !partner) throw new HttpError(404, "Conversation not found");
-  return { conversation, partnerId: partner.userId };
+async function partnerIn(sessionId: string, userId: string) {
+  const session = await findSession(sessionId);
+  const partnerId = session && partnerIdOf(session, userId);
+  if (!session || !partnerId) throw new HttpError(404, "Conversation not found");
+  return { session, partnerId };
 }
 
-export async function blockPartner(userId: string, conversationId: string) {
-  const { conversation, partnerId } = await partnerIn(conversationId, userId);
-  await User.updateOne({ _id: userId }, { $addToSet: { blockedUsers: partnerId } });
-  if (conversation.status === "active") await endConversation(conversationId, userId, "blocked");
+async function block(userId: string, blockedId: string, sessionId: string) {
+  await db.insert(userBlocks).values({ blockerId: userId, blockedId, sessionId }).onConflictDoNothing();
 }
 
-export async function reportPartner(userId: string, conversationId: string, reason: ReportReason, details: string) {
-  const { conversation, partnerId } = await partnerIn(conversationId, userId);
+export async function blockPartner(userId: string, sessionId: string) {
+  const { session, partnerId } = await partnerIn(sessionId, userId);
+  await block(userId, partnerId, sessionId);
+  if (session.status !== "ended") await endSession(sessionId, userId, "blocked");
+}
+
+export async function reportPartner(userId: string, sessionId: string, reason: ReportReason, details: string) {
+  const { session, partnerId } = await partnerIn(sessionId, userId);
+  let reportId: number;
   try {
-    await Report.create({ reporterId: userId, reportedUserId: partnerId, conversationId, reason, details });
+    const [report] = await db
+      .insert(reports)
+      .values({ reporterId: userId, reportedId: partnerId, sessionId, reason, details })
+      .returning({ id: reports.id });
+    reportId = report!.id;
   } catch (err) {
-    if ((err as { code?: number }).code === 11000) throw new HttpError(409, "You already reported this conversation");
+    if (isUniqueViolation(err)) throw new HttpError(409, "You already reported this conversation");
     throw err;
   }
   // Reporting always blocks too: you should never be matched with someone you reported.
-  await User.updateOne({ _id: userId }, { $addToSet: { blockedUsers: partnerId } });
-  if (conversation.status === "active") await endConversation(conversationId, userId, "reported");
-  await applyAutomaticModeration(partnerId);
+  await block(userId, partnerId, sessionId);
+  if (session.status !== "ended") await endSession(sessionId, userId, "reported");
+  await applyAutomaticModeration(partnerId, reportId);
+}
+
+/** The ban currently in force for a user, if any. */
+export async function findActiveBan(userId: string) {
+  const now = new Date();
+  const [ban] = await db
+    .select()
+    .from(bans)
+    .where(
+      and(
+        eq(bans.userId, userId),
+        isNull(bans.revokedAt),
+        lte(bans.startsAt, now),
+        or(isNull(bans.endsAt), gt(bans.endsAt, now)),
+      ),
+    )
+    .orderBy(desc(bans.createdAt))
+    .limit(1);
+  return ban ?? null;
+}
+
+/** One active ban per user for a batch of users (newest first). Skipped ids have no ban. */
+export async function activeBansFor(userIds: string[]): Promise<Map<string, typeof bans.$inferSelect>> {
+  const map = new Map<string, typeof bans.$inferSelect>();
+  if (userIds.length === 0) return map;
+  const now = new Date();
+  const rows = await db
+    .select()
+    .from(bans)
+    .where(
+      and(
+        inArray(bans.userId, userIds),
+        isNull(bans.revokedAt),
+        lte(bans.startsAt, now),
+        or(isNull(bans.endsAt), gt(bans.endsAt, now)),
+      ),
+    )
+    .orderBy(desc(bans.createdAt));
+  for (const row of rows) if (!map.has(row.userId)) map.set(row.userId, row);
+  return map;
 }
 
 /** Temporarily suspends users who are reported by several different people within a day. */
-async function applyAutomaticModeration(userId: Types.ObjectId) {
+async function applyAutomaticModeration(userId: string, reportId: number) {
   const since = new Date(Date.now() - 24 * 3600 * 1000);
-  const reporters = await Report.distinct("reporterId", { reportedUserId: userId, createdAt: { $gte: since } });
-  if (reporters.length < env.MODERATION_AUTO_SUSPEND_REPORTS) return;
-  await User.updateOne(
-    { _id: userId, "moderation.status": { $ne: "banned" } },
-    {
-      $set: {
-        "moderation.status": "suspended",
-        "moderation.suspendedUntil": new Date(Date.now() + SUSPENSION_HOURS * 3600 * 1000),
-        "moderation.reason": `Automatically suspended after ${reporters.length} reports in 24 hours, pending review`,
-      },
-    },
-  );
-  console.warn(`[moderation] User ${userId} auto-suspended after ${reporters.length} reports`);
+  const [row] = await db
+    .select({ reporters: countDistinct(reports.reporterId) })
+    .from(reports)
+    .where(and(eq(reports.reportedId, userId), gte(reports.createdAt, since)));
+  const reporters = row?.reporters ?? 0;
+  if (reporters < env.MODERATION_AUTO_SUSPEND_REPORTS) return;
+  if (await findActiveBan(userId)) return;
+  await db.insert(bans).values({
+    userId,
+    source: "automatic",
+    reason: `Automatically suspended after ${reporters} reports in 24 hours, pending review`,
+    reportId,
+    endsAt: new Date(Date.now() + SUSPENSION_HOURS * 3600 * 1000),
+  });
+  console.warn(`[moderation] User ${userId} auto-suspended after ${reporters} reports`);
+}
+
+/** Everyone the user blocked or was blocked by, for the matchmaker. */
+export async function blockedUserIds(userId: string): Promise<Set<string>> {
+  const rows = await db
+    .select()
+    .from(userBlocks)
+    .where(or(eq(userBlocks.blockerId, userId), eq(userBlocks.blockedId, userId)));
+  return new Set(rows.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId)));
 }
 
 export async function unblockUser(userId: string, blockedId: string) {
-  await User.updateOne({ _id: userId }, { $pull: { blockedUsers: blockedId } });
+  await db.delete(userBlocks).where(and(eq(userBlocks.blockerId, userId), eq(userBlocks.blockedId, blockedId)));
 }

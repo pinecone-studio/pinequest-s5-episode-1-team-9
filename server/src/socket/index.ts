@@ -2,17 +2,20 @@ import { isTargetLanguage } from "@linguamatch/shared";
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
 import { isAllowedOrigin } from "../config/env";
+import { isUuid as isRoomId } from "../db/client";
 import { Matchmaker, QueueError } from "../services/matchmaking/matchmaker";
+import { findOrCreateUser } from "../models/User";
 import {
   addTranscriptSegment,
-  createConversationFromMatch,
-  endConversation,
+  addVideoFrame,
+  createSessionFromMatch,
+  endSession,
   handleSocketDisconnect,
   joinRoom,
   relaySignal,
   requestTopic,
 } from "../services/rooms/roomService";
-import { logAuthFailure, verifyToken } from "../utils/auth";
+import { logAuthFailure, verifySessionToken } from "../utils/auth";
 import { setIO, userRoom, type AppSocket, type IO } from "./io";
 
 export let matchmaker: Matchmaker;
@@ -28,8 +31,6 @@ function safe<A extends unknown[]>(socket: AppSocket, fn: (...args: A) => Promis
   };
 }
 
-const isRoomId = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{24}$/i.test(v);
-
 export function createSocketServer(httpServer: HttpServer): IO {
   const io: IO = new Server(httpServer, {
     cors: { origin: (origin, cb) => cb(null, isAllowedOrigin(origin)), credentials: true },
@@ -37,7 +38,7 @@ export function createSocketServer(httpServer: HttpServer): IO {
   });
   setIO(io);
 
-  // Auth uses the access token from the handshake `auth` payload, never cookies: the socket
+  // Auth uses the Clerk session token from the handshake `auth` payload, never cookies: the socket
   // server lives on another site, where the web app's cookies are third-party and get blocked.
   // CORS doesn't cover WebSocket upgrades, so the origin is checked here as well.
   io.use((socket, next) => {
@@ -47,17 +48,28 @@ export function createSocketServer(httpServer: HttpServer): IO {
       return next(new Error("forbidden_origin"));
     }
     const token = socket.handshake.auth?.token;
-    const result = verifyToken(typeof token === "string" ? token : null, "access");
-    if (!result.ok) {
-      logAuthFailure("socket", result.reason, { origin });
-      // The client reads `message` to decide whether to refresh its token and retry.
-      return next(Object.assign(new Error("unauthorized"), { data: { reason: result.reason } }));
-    }
-    socket.data.userId = result.userId;
-    next();
+    // The client reads `message` to decide whether to fetch a fresh token and retry.
+    const reject = (reason: string) => next(Object.assign(new Error("unauthorized"), { data: { reason } }));
+    void (async () => {
+      const result = await verifySessionToken(typeof token === "string" ? token : null);
+      if (!result.ok) {
+        logAuthFailure("socket", result.reason, { origin });
+        return reject(result.reason);
+      }
+      const user = await findOrCreateUser(result.userId);
+      if (user.deletedAt) {
+        logAuthFailure("socket", "deleted_user", { origin });
+        return reject("deleted_user");
+      }
+      socket.data.userId = user.id;
+      next();
+    })().catch((err) => {
+      console.error("[socket] auth failed:", err);
+      next(new Error("server_error"));
+    });
   });
 
-  matchmaker = new Matchmaker(createConversationFromMatch);
+  matchmaker = new Matchmaker(createSessionFromMatch);
   matchmaker.start();
 
   io.on("connection", (socket: AppSocket) => {
@@ -93,7 +105,7 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "room:leave",
       safe(socket, async (payload) => {
         if (!isRoomId(payload?.roomId)) return;
-        await endConversation(payload.roomId, userId, payload.reason === "next" ? "next" : "ended");
+        await endSession(payload.roomId, userId, payload.reason === "next" ? "next" : "ended");
       }),
     );
 
@@ -116,6 +128,13 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "transcript:segment",
       safe(socket, async (payload) => {
         if (isRoomId(payload?.roomId)) await addTranscriptSegment(socket, payload);
+      }),
+    );
+
+    socket.on(
+      "frame:sample",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await addVideoFrame(socket, payload);
       }),
     );
 

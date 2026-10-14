@@ -1,29 +1,49 @@
 /**
- * End-to-end smoke test against a running server (npm start).
- * Two users register, onboard, queue, get matched, join the room, send transcript
+ * End-to-end smoke test against a running development server (npm start, NODE_ENV != production).
+ * Two Clerk test users sign in, onboard, queue, get matched, join the room, send transcript
  * segments, exchange a signaling message, end the call, and read their own feedback.
+ * The Clerk users are created on the instance in CLERK_SECRET_KEY and deleted afterwards.
  *
- *   npx tsx scripts/smoke.ts [http://localhost:4000]
+ *   npx tsx --env-file=../.env scripts/smoke.ts [http://localhost:4000]
  */
+import { createClerkClient } from "@clerk/backend";
 import type { ClientToServerEvents, ServerToClientEvents } from "@linguamatch/shared";
 import { io, type Socket } from "socket.io-client";
 
 const BASE = process.argv[2] ?? "http://localhost:4000";
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-async function api(path: string, opts: { method?: string; body?: unknown; token?: string; cookie?: string } = {}) {
+if (!process.env.CLERK_SECRET_KEY?.startsWith("sk_test_")) {
+  throw new Error("Set CLERK_SECRET_KEY to a development (sk_test_) key; the smoke test creates and deletes Clerk users.");
+}
+const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+const clerkUserIds: string[] = [];
+
+async function api(path: string, opts: { method?: string; body?: unknown; token?: string } = {}) {
   const res = await fetch(`${BASE}/api${path}`, {
     method: opts.method ?? (opts.body ? "POST" : "GET"),
     headers: {
       "content-type": "application/json",
       ...(opts.token ? { authorization: `Bearer ${opts.token}` } : {}),
-      ...(opts.cookie ? { cookie: opts.cookie } : {}),
     },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const text = await res.text();
-  const refreshCookie = res.headers.getSetCookie().find((c) => c.startsWith("lm_refresh=") && !c.startsWith("lm_refresh=;"));
-  return { status: res.status, json: text ? JSON.parse(text) : null, cookie: refreshCookie?.split(";")[0] };
+  return { status: res.status, json: text ? JSON.parse(text) : null };
+}
+
+/** A Clerk user with an active session and a 10-minute session token (Backend API tokens carry no `azp`). */
+async function clerkSession(name: string) {
+  const suffix = Math.random().toString(36).slice(2, 7);
+  const user = await clerk.users.createUser({
+    emailAddress: [`${name}_${suffix}+clerk_test@example.com`],
+    password: `Smoke-${suffix}-${Date.now()}!`,
+    firstName: name,
+    skipPasswordChecks: true,
+  });
+  clerkUserIds.push(user.id);
+  const session = await clerk.sessions.createSession({ userId: user.id });
+  return (await clerk.sessions.getToken(session.id, undefined, 600)).jwt;
 }
 
 function once<E extends keyof ServerToClientEvents>(s: ClientSocket, event: E, ms = 10_000) {
@@ -42,14 +62,9 @@ function check(cond: unknown, label: string) {
 }
 
 async function makeUser(name: string, level: string, nativeLanguage: string) {
-  const suffix = Math.random().toString(36).slice(2, 7);
-  const reg = await api("/auth/register", {
-    body: { username: `${name}_${suffix}`, email: `${name}${suffix}@example.com`, password: "password123" },
-  });
-  check(reg.status === 201 && reg.cookie && reg.json?.accessToken, `${name} registered (access token + refresh cookie)`);
-  const refreshed = await api("/auth/refresh", { cookie: reg.cookie, body: {} });
-  check(refreshed.status === 200 && refreshed.json?.accessToken && refreshed.cookie, `${name} refreshed the session`);
-  const token: string = refreshed.json.accessToken;
+  const token = await clerkSession(name);
+  const me = await api("/auth/me", { token });
+  check(me.status === 200 && me.json?.user?.username.startsWith(name), `${name} signed in with Clerk; profile created`);
   const onboard = await api("/me/onboarding", {
     token,
     body: { nativeLanguage, targetLanguage: "en", level, acceptRules: true, transcriptionConsent: true },
@@ -70,7 +85,7 @@ async function main() {
 
   const unauth = await api("/me/profile");
   check(unauth.status === 401, "unauthenticated request rejected");
-  check((await api("/auth/refresh", { body: {} })).status === 401, "refresh without cookie rejected");
+  check((await api("/me/profile", { token: "not.a.jwt" })).status === 401, "invalid token rejected");
 
   const anon = io(BASE, { transports: ["websocket"], reconnection: false });
   const anonError = await new Promise<Error>((r) => anon.on("connect_error", r));
@@ -79,6 +94,10 @@ async function main() {
 
   const a = await makeUser("alice", "B1", "mn");
   const b = await makeUser("bora", "B1", "ko");
+  check(
+    (await api(`/me/settings`, { method: "PATCH", token: b.token, body: { username: (await api("/auth/me", { token: a.token })).json.user.username } })).status === 409,
+    "usernames are unique",
+  );
 
   const statusA = once(a.socket, "queue:status");
   a.socket.emit("queue:join", { targetLanguage: "en" });
@@ -164,7 +183,12 @@ async function main() {
   console.log("\nSmoke test passed.");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    for (const id of clerkUserIds) await clerk.users.deleteUser(id).catch(() => {});
+    process.exit();
+  });

@@ -1,4 +1,15 @@
-import type { AssessmentQuestion, AssessmentResult, FeedbackDTO, ProfileStats, UserDTO } from "@linguamatch/shared";
+import type {
+  AdminActionDTO,
+  AdminBanDTO,
+  AdminReportDTO,
+  AdminStatsDTO,
+  AdminUserDTO,
+  AssessmentQuestion,
+  AssessmentResult,
+  FeedbackDTO,
+  ProfileStats,
+  UserDTO,
+} from "@linguamatch/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -61,75 +72,26 @@ async function fetchWithWake(path: string, init: RequestInit, retrySafe = !init.
 }
 
 // ─── Session ────────────────────────────────────────────────────────────────
-// The access token lives only in memory. The refresh token is an httpOnly cookie on this
-// site's own domain (/api is proxied to the API), so it survives reloads and works in Incognito.
+// Clerk owns the session. The auth provider registers Clerk's `getToken`, which returns a
+// short-lived session token (cached and refreshed by Clerk), or null when signed out.
 
-interface SessionResponse {
-  user: UserDTO;
-  accessToken: string;
-  accessTokenExpiresAt: number;
+type TokenGetter = (opts?: { skipCache?: boolean }) => Promise<string | null>;
+let tokenGetter: TokenGetter = async () => null;
+
+export function setTokenGetter(getter: TokenGetter) {
+  tokenGetter = getter;
 }
 
-let accessToken: string | null = null;
-let accessTokenExpiresAt = 0;
-let refreshing: Promise<UserDTO | null> | null = null;
-let sessionLostHandler: (() => void) | null = null;
-
-function setSession(session: SessionResponse): UserDTO {
-  accessToken = session.accessToken;
-  accessTokenExpiresAt = session.accessTokenExpiresAt;
-  return session.user;
+/** A valid session token for the socket handshake. `force` bypasses Clerk's cache. */
+export function getFreshAccessToken(force = false): Promise<string | null> {
+  return tokenGetter(force ? { skipCache: true } : undefined);
 }
-
-function clearSession() {
-  accessToken = null;
-  accessTokenExpiresAt = 0;
-}
-
-/** Called when the server says the session is gone (refresh rejected), so the app can show login. */
-export function onSessionLost(handler: (() => void) | null) {
-  sessionLostHandler = handler;
-}
-
-/**
- * Trades the refresh cookie for a new access token. Concurrent callers share one request.
- * Resolves to null only when the server rejects the session (401); network trouble throws.
- */
-export function refreshSession(): Promise<UserDTO | null> {
-  refreshing ??= (async () => {
-    try {
-      const res = await fetchWithWake("/auth/refresh", { method: "POST", credentials: "same-origin" }, true);
-      if (res.status === 401) {
-        clearSession();
-        sessionLostHandler?.();
-        return null;
-      }
-      if (!res.ok) throw new ApiError(res.status, `Couldn't restore your session (${res.status})`);
-      return setSession((await res.json()) as SessionResponse);
-    } finally {
-      refreshing = null;
-    }
-  })();
-  return refreshing;
-}
-
-/** A valid access token for the socket handshake, refreshing first if it's missing or about to expire. */
-export async function getFreshAccessToken(): Promise<string | null> {
-  if (accessToken && accessTokenExpiresAt - Date.now() > 30_000) return accessToken;
-  return (await refreshSession()) ? accessToken : null;
-}
-
-// Endpoints whose 401 means "wrong credentials" or "no session", not "token expired".
-const NO_REFRESH_PATHS = new Set(["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"]);
 
 async function request<T>(path: string, init: { method?: string; body?: unknown } = {}, isRetry = false): Promise<T> {
-  // Refresh ahead of expiry so a long wait doesn't cost a 401 round trip.
-  if (accessToken && accessTokenExpiresAt - Date.now() < 30_000 && !NO_REFRESH_PATHS.has(path)) {
-    await refreshSession();
-  }
+  const token = await getFreshAccessToken(isRetry);
   const headers: Record<string, string> = {};
   if (init.body !== undefined) headers["content-type"] = "application/json";
-  if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+  if (token) headers.authorization = `Bearer ${token}`;
 
   const res = await fetchWithWake(path, {
     method: init.method ?? (init.body !== undefined ? "POST" : "GET"),
@@ -138,11 +100,8 @@ async function request<T>(path: string, init: { method?: string; body?: unknown 
     credentials: "same-origin",
   });
 
-  // Expired or missing access token: refresh once, retry once. If the refresh is rejected,
-  // refreshSession() has already told the app the session is gone.
-  if (res.status === 401 && !isRetry && !NO_REFRESH_PATHS.has(path)) {
-    if (await refreshSession()) return request<T>(path, init, true);
-  }
+  // The token can expire in flight (they live about a minute): retry once with a fresh one.
+  if (res.status === 401 && !isRetry && token) return request<T>(path, init, true);
 
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
@@ -161,19 +120,9 @@ export const api = {
     ),
 
   me: () => request<{ user: UserDTO }>("/auth/me"),
-  register: async (body: { username: string; email: string; password: string }) =>
-    ({ user: setSession(await request<SessionResponse>("/auth/register", { body })) }),
-  login: async (body: { identifier: string; password: string }) =>
-    ({ user: setSession(await request<SessionResponse>("/auth/login", { body })) }),
-  logout: async () => {
-    try {
-      await request<void>("/auth/logout", { body: {} });
-    } finally {
-      clearSession();
-    }
-  },
 
   onboarding: (body: {
+    username?: string;
     nativeLanguage: string;
     targetLanguage: string;
     level: string;
@@ -181,6 +130,7 @@ export const api = {
     transcriptionConsent: boolean;
   }) => request<{ user: UserDTO }>("/me/onboarding", { body }),
   updateSettings: (body: {
+    username?: string;
     nativeLanguage?: string;
     activeTargetLanguage?: string;
     privacy?: { transcriptionConsent?: boolean; retainTranscripts?: boolean };
@@ -191,10 +141,7 @@ export const api = {
   profile: () => request<{ profile: ProfileStats }>("/me/profile"),
   blocked: () => request<{ blocked: { id: string; username: string }[] }>("/me/blocked"),
   unblock: (id: string) => request<void>(`/me/blocked/${id}`, { method: "DELETE" }),
-  deleteAccount: async () => {
-    await request<void>("/me", { method: "DELETE" });
-    clearSession();
-  },
+  deleteAccount: () => request<void>("/me", { method: "DELETE" }),
 
   feedback: (conversationId: string) => request<{ feedback: FeedbackDTO }>(`/conversations/${conversationId}/feedback`),
   retryFeedback: (conversationId: string) =>
@@ -203,11 +150,39 @@ export const api = {
     request<{ ok: true }>(`/conversations/${conversationId}/report`, { body: { reason, details } }),
   block: (conversationId: string) => request<{ ok: true }>(`/conversations/${conversationId}/block`, { body: {} }),
 
+  // The assessment is stateless: the page keeps the questions and sends them back with the answers.
   startAssessment: (targetLanguage: string) =>
-    request<{ id: string; targetLanguage: string; questions: AssessmentQuestion[] }>("/assessment", {
-      body: { targetLanguage },
-    }),
-  submitAssessment: (id: string, answers: { questionId: string; answer: string }[]) =>
-    request<{ result: AssessmentResult }>(`/assessment/${id}/submit`, { body: { answers } }),
-  applyAssessment: (id: string) => request<{ user: UserDTO }>(`/assessment/${id}/apply`, { body: {} }),
+    request<{ targetLanguage: string; questions: AssessmentQuestion[] }>("/assessment", { body: { targetLanguage } }),
+  submitAssessment: (body: {
+    targetLanguage: string;
+    questions: AssessmentQuestion[];
+    answers: { questionId: string; answer: string }[];
+  }) => request<{ result: AssessmentResult }>("/assessment/submit", { body }),
+  applyAssessment: (targetLanguage: string, level: string) =>
+    request<{ user: UserDTO }>("/assessment/apply", { body: { targetLanguage, level } }),
+};
+
+/** Builds a query string, dropping empty/undefined values, for typed filter objects. */
+function toQuery(params: Record<string, string | number | undefined>): string {
+  const out = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") out.set(k, String(v));
+  return out.toString();
+}
+
+export const adminApi = {
+  stats: () => request<{ stats: AdminStatsDTO }>("/admin/stats"),
+  reports: (params: { status?: string; limit?: number; offset?: number } = {}) =>
+    request<{ reports: AdminReportDTO[]; total: number }>(`/admin/reports?${toQuery(params)}`),
+  reviewReport: (id: number, body: { action: "dismiss" | "suspend"; days?: number | null; reason: string }) =>
+    request<{ report: AdminReportDTO; ok: true }>(`/admin/reports/${id}/review`, { body }),
+  users: (params: { q?: string; role?: string; banned?: string; deleted?: string; limit?: number; offset?: number } = {}) =>
+    request<{ users: AdminUserDTO[]; total: number }>(`/admin/users?${toQuery(params)}`),
+  changeRole: (id: string, role: string) =>
+    request<{ user: AdminUserDTO }>(`/admin/users/${id}/role`, { method: "PATCH", body: { role } }),
+  banUser: (id: string, body: { reason: string; days?: number | null }) =>
+    request<{ ban: AdminBanDTO }>(`/admin/users/${id}/ban`, { body }),
+  unbanUser: (id: string, reason: string) =>
+    request<{ ok: true }>(`/admin/users/${id}/unban`, { body: { reason } }),
+  actions: (params: { limit?: number; offset?: number } = {}) =>
+    request<{ actions: AdminActionDTO[]; total: number }>(`/admin/actions?${toQuery(params)}`),
 };

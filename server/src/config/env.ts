@@ -1,31 +1,29 @@
 import { z } from "zod";
 import { createHmac } from "node:crypto";
 
-const boolish = z
-  .enum(["true", "false", "1", "0"])
-  .transform((v) => v === "true" || v === "1");
-
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   /** Comma-separated list of exact web origins allowed to call the API and open sockets. */
   CLIENT_ORIGIN: z.string().default("http://localhost:3000"),
 
-  MONGODB_URI: z.string().optional(),
-  /** Dev convenience: spin up an ephemeral MongoDB when MONGODB_URI is not set. */
-  USE_IN_MEMORY_DB: boolish.default(false),
+  /** Pooled Postgres connection string (Neon `-pooler` host) used for app queries. */
+  DATABASE_URL: z.string({ error: "DATABASE_URL is missing. Run `neon env pull` or set it to your Neon connection string." }).min(1),
+  /** Direct (unpooled) connection used for migrations. Falls back to DATABASE_URL. */
+  DATABASE_URL_UNPOOLED: z.string().min(1).optional(),
 
-  JWT_SECRET: z
-    .string({ error: "JWT_SECRET is missing. Set it to a long random string (the same value everywhere tokens are verified)." })
-    .min(32, "JWT_SECRET must be at least 32 characters"),
-  /** Lifetime of the in-memory access token sent as a Bearer header and in the socket handshake. */
-  ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().max(60).default(15),
-  /** Lifetime of the httpOnly refresh cookie; each refresh extends it. */
-  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  /** Clerk keys. @clerk/express reads them from process.env; they're validated here so startup fails early. */
+  CLERK_SECRET_KEY: z.string({ error: "CLERK_SECRET_KEY is missing. Run `clerk env pull --file .env`." }).startsWith("sk_"),
+  CLERK_PUBLISHABLE_KEY: z
+    .string({ error: "CLERK_PUBLISHABLE_KEY is missing. Run `clerk env pull --file .env`." })
+    .startsWith("pk_"),
 
-  AI_PROVIDER: z.enum(["anthropic"]).default("anthropic"),
+  /** Which AI provider to use. `gemini` has a free tier (set GEMINI_API_KEY). */
+  AI_PROVIDER: z.enum(["anthropic", "gemini"]).default("anthropic"),
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default("claude-opus-5-5"),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
 
   STUN_URLS: z.string().default("stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302"),
   TURN_URL: z.string().optional(),
@@ -40,14 +38,40 @@ const EnvSchema = z.object({
 
   /** Distinct reporters within 24h that trigger an automatic temporary suspension. */
   MODERATION_AUTO_SUSPEND_REPORTS: z.coerce.number().int().positive().default(3),
-}).superRefine((config, ctx) => {
-  if (config.TURN_URL && !config.TURN_SHARED_SECRET) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["TURN_SHARED_SECRET"],
-      message: "TURN_SHARED_SECRET is required when TURN_URL is configured.",
-    });
-  }
+
+  /** Real-time AI moderation of conversation transcripts (auto-report + temporary suspension). */
+  AI_MODERATION_ENABLED: z
+    .enum(["true", "false", "1", "0"])
+    .default("true")
+    .transform((v) => v === "true" || v === "1"),
+  /** How often each active conversation's new transcript is scanned, in seconds. */
+  AI_MODERATION_INTERVAL_SECONDS: z.coerce.number().int().min(5).default(30),
+  /** Minimum new utterances since the last scan before a conversation is checked. */
+  AI_MODERATION_MIN_SEGMENTS: z.coerce.number().int().min(1).default(4),
+  /** Suspension length applied automatically when AI flags a violation. */
+  AI_MODERATION_SUSPEND_DAYS: z.coerce.number().int().positive().default(14),
+  /** Minimum severity for an AI finding to be acted on. */
+  AI_MODERATION_MIN_SEVERITY: z.enum(["low", "medium", "high"]).default("medium"),
+  /** Minimum model confidence required before acting on a finding. */
+  AI_MODERATION_MIN_CONFIDENCE: z.enum(["low", "medium", "high"]).default("medium"),
+
+  /** Real-time AI vision review of camera frames. The browser samples its own camera (no media
+   *  server); frames are analyzed in memory and never stored. */
+  AI_MODERATION_VIDEO_ENABLED: z
+    .enum(["true", "false", "1", "0"])
+    .default("true")
+    .transform((v) => v === "true" || v === "1"),
+  /** Minimum sampled frames buffered since the last scan before a vision check runs. */
+  AI_MODERATION_VIDEO_MIN_FRAMES: z.coerce.number().int().min(1).default(1),
+  /** Vision findings must be at least this severe/confident; imagery false positives are costly. */
+  AI_MODERATION_VIDEO_MIN_SEVERITY: z.enum(["low", "medium", "high"]).default("medium"),
+  AI_MODERATION_VIDEO_MIN_CONFIDENCE: z.enum(["low", "medium", "high"]).default("high"),
+
+  /**
+   * Comma-separated emails that are promoted to admin at first sign-in (and on every auth
+   * check until they have the role), so you can bootstrap the first administrator.
+   */
+  ADMIN_EMAILS: z.string().default(""),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -61,11 +85,22 @@ if (!parsed.success) {
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === "production";
 
+/** Lowercased admin emails from ADMIN_EMAILS (bootstrap admins). */
+export const adminEmails: ReadonlySet<string> = new Set(
+  env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
+);
+
 /** Exact origins allowed for CORS and Socket.IO. localhost:3000 is added in development only. */
 export const allowedOrigins: ReadonlySet<string> = new Set([
   ...env.CLIENT_ORIGIN.split(",").map((o) => o.trim().replace(/\/+$/, "")).filter(Boolean),
   ...(isProd ? [] : ["http://localhost:3000"]),
 ]);
+
+/**
+ * Origins a Clerk session token must have been minted for (its `azp` claim). Enforced in production
+ * only: tokens minted through Clerk's Backend API for tests and scripts carry no `azp` at all.
+ */
+export const clerkAuthorizedParties: string[] | undefined = isProd ? [...allowedOrigins] : undefined;
 
 /** Requests without an Origin header (same-origin GETs, curl, health checks) are not cross-site and are allowed. */
 export const isAllowedOrigin = (origin: string | undefined) => !origin || allowedOrigins.has(origin);

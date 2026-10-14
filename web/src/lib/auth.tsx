@@ -1,12 +1,14 @@
 "use client";
 
+import { useAuth as useClerkAuth } from "@clerk/nextjs";
 import type { UserDTO } from "@linguamatch/shared";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
-import { api, onSessionLost, refreshSession, serverStatusStore } from "./api";
+import { ApiError, api, serverStatusStore, setTokenGetter } from "./api";
 import { disconnectSocket } from "./socket";
 
 interface AuthContextValue {
+  /** The app profile (username, languages, privacy). Null when signed out. */
   user: UserDTO | null;
   loading: boolean;
   setUser: (user: UserDTO | null) => void;
@@ -17,48 +19,65 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { isLoaded, isSignedIn, userId, getToken, signOut } = useClerkAuth();
   const [user, setUser] = useState<UserDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    setTokenGetter((opts) => getToken(opts));
+  }, [getToken]);
+
   /**
-   * Restores the session from the refresh cookie. Only a 401 signs the user out; if the server
-   * can't be reached we stay in the loading state and try again, so nobody is sent to /login
-   * just because the API is asleep.
+   * Loads the app profile for the Clerk session (the server creates it on first sign-in).
+   * If the API can't be reached we stay in the loading state and try again, so nobody is
+   * sent to /login just because the server is asleep.
    */
-  const refresh = useCallback(async () => {
-    for (let delay = 5000; ; delay = Math.min(delay * 2, 30_000)) {
-      try {
-        setUser(await refreshSession());
-        setLoading(false);
-        return;
-      } catch (err) {
-        console.error("[auth] couldn't reach the server to restore the session:", err);
-        await new Promise((r) => setTimeout(r, delay));
+  const loadProfile = useCallback(
+    async (isCurrent: () => boolean = () => true) => {
+      for (let delay = 5000; isCurrent(); delay = Math.min(delay * 2, 30_000)) {
+        try {
+          const { user } = await api.me();
+          if (isCurrent()) setUser(user);
+          break;
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 401) {
+            // Clerk session without a usable account (e.g. it was deleted): end the session.
+            if (isCurrent()) setUser(null);
+            await signOut();
+            break;
+          }
+          console.error("[auth] couldn't load your profile:", err);
+          await new Promise((r) => setTimeout(r, delay));
+        }
       }
-    }
-  }, []);
+      if (isCurrent()) setLoading(false);
+    },
+    [signOut],
+  );
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  // A rejected refresh anywhere (API call or socket) means the session is really gone.
-  useEffect(() => {
-    onSessionLost(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
       disconnectSocket();
       setUser(null);
-    });
-    return () => onSessionLost(null);
-  }, []);
+      setLoading(false);
+      return;
+    }
+    let current = true;
+    setLoading(true);
+    void loadProfile(() => current);
+    return () => {
+      current = false;
+    };
+  }, [isLoaded, isSignedIn, userId, loadProfile]);
+
+  const refresh = useCallback(() => loadProfile(), [loadProfile]);
 
   const logout = useCallback(async () => {
     disconnectSocket();
-    try {
-      await api.logout();
-    } finally {
-      setUser(null);
-    }
-  }, []);
+    await signOut();
+    setUser(null);
+  }, [signOut]);
 
   return (
     <AuthContext.Provider value={{ user, loading, setUser, refresh, logout }}>
@@ -96,7 +115,8 @@ export function useRequireUser({ onboarded = true }: { onboarded?: boolean } = {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    // Clerk's sign-in sends the user back to `redirect_url` afterwards.
+    if (!user) router.replace(`/login?redirect_url=${encodeURIComponent(pathname)}`);
     else if (onboarded && !user.onboarded) router.replace("/onboarding");
   }, [loading, user, onboarded, router, pathname]);
 

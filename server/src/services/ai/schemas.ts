@@ -67,3 +67,16 @@ export const ConversationAnalysisSchema = z.object({
 export function clampScore(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
+
+export const ModerationSchema = z.object({
+  findings: z.array(
+    z.object({
+      speaker: z.enum(["a", "b"]).describe("Who said it: a = the caller, b = the callee"),
+      category: z.enum(["harassment", "sexual", "hate", "minor", "spam", "other"]),
+      severity: z.enum(["low", "medium", "high"]),
+      confidence: z.enum(["low", "medium", "high"]),
+      quote: z.string().describe("The exact abusive words, copied from the transcript"),
+      reason: z.string().describe("One short sentence, in English, explaining the problem"),
+    }),
+  ),
+});
