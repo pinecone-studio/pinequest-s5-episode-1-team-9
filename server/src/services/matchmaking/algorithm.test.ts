@@ -60,9 +60,19 @@ describe("findMatches", () => {
     assert.equal(findMatches([entry("a", "B1"), entry("b", "B1", 0, { blocked: new Set(["a"]) })], NOW, OPTS).length, 0);
   });
 
-  it("never rematches the most recent partner, even after a long wait", () => {
-    const pairs = findMatches([entry("a", "B1", 300, { recentPartners: ["b"] }), entry("b", "B1", 300)], NOW, OPTS);
-    assert.equal(pairs.length, 0);
+  it("rematches the most recent partner only once both have waited past the grace period", () => {
+    const last = { recentPartners: ["b"] };
+    assert.equal(findMatches([entry("a", "B1", 59, last), entry("b", "B1", 300)], NOW, OPTS).length, 0);
+    assert.equal(findMatches([entry("a", "B1", 61, last), entry("b", "B1", 61)], NOW, OPTS).length, 1);
+  });
+
+  it("prefers someone new over the most recent partner, even after the grace period", () => {
+    const pairs = findMatches(
+      [entry("a", "B1", 300, { recentPartners: ["b"] }), entry("b", "B1", 300), entry("c", "B1", 0)],
+      NOW,
+      OPTS,
+    );
+    assert.deepEqual(pairs.map((p) => [p.a.userId, p.b.userId]), [["a", "c"]]);
   });
 
   it("avoids older recent partners until both have waited past the grace period", () => {

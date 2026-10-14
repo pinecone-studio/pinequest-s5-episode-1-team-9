@@ -126,7 +126,7 @@ web/      Next.js (App Router) + Tailwind v4 + shadcn/ui
 
 ### Conversation flow
 
-1. A client sends `queue:join`. Every second (and on each join) the matchmaker pairs entries with the same target language. It tries exact CEFR level first, then allows ±1 level after `MATCH_EXPAND_AFTER_SECONDS`, never going past `MATCH_MAX_LEVEL_DISTANCE`. It never pairs blocked users or the user's most recent partner, and avoids other recent partners until both people have waited 60 seconds. Native language is never used.
+1. A client sends `queue:join`. Every second (and on each join) the matchmaker pairs entries with the same target language. It tries exact CEFR level first, then allows ±1 level after `MATCH_EXPAND_AFTER_SECONDS`, never going past `MATCH_MAX_LEVEL_DISTANCE`. It never pairs blocked users, and avoids recent partners (the most recent one included) until both people have waited 60 seconds and nobody else is available. Native language is never used.
 2. A match creates a `sessions` row, and topic generation starts in the background. Both clients go to `/room/:id` and emit `room:join`. Once both are present, the server sends `room:ready` with a caller or callee role and the ICE servers.
 3. WebRTC offer, answer and ICE messages are relayed only to the other participant. Media flows peer to peer.
 4. Each browser transcribes **only its own microphone** (Web Speech API) and sends final phrases as `transcript:segment`. While the camera is on it also samples small, compressed still frames from **its own** camera and sends them as `frame:sample`. Consent is snapshotted at match time.
