@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CoachPanel } from "@/components/room/coach-panel";
+import { LiveCaptions } from "@/components/room/live-captions";
 import { BlockDialog, ReportDialog } from "@/components/room/safety-dialogs";
 import { VideoTile } from "@/components/room/video-tile";
 import { EmojiReactions } from "@/components/xp/emoji-reactions";
@@ -246,6 +247,7 @@ export default function RoomPage() {
             }
           />
           {info && !ended && <EmojiReactions socket={socket} roomId={roomId} myUserId={user.id} />}
+          {info && !ended && <LiveCaptions speech={speech} consent={consent} />}
         </div>
 
         {/* SIDEBAR: AI coach */}
