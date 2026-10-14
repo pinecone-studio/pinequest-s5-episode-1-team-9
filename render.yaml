@@ -6,7 +6,9 @@ services:
     name: linguamatch-api
     runtime: node
     plan: free
-    region: oregon
+    # Same region as the Neon database (ap-southeast-1): every query would otherwise cross the Pacific.
+    # Render can't move an existing service, so changing this means creating a new one.
+    region: singapore
     rootDir: server
     # The server imports the `shared` workspace, so install from the repo root (one level up).
     buildCommand: cd .. && npm ci --workspace server --include-workspace-root=false
@@ -29,7 +31,7 @@ services:
         value: production
       # Exact web origin(s), comma-separated. Add Vercel preview URLs here if you use them.
       - key: CLIENT_ORIGIN
-        value: https://linguamatch.vercel.app
+        value: https://linguamatch-taupe.vercel.app
       # Neon pooled connection string (the `-pooler` host).
       - key: DATABASE_URL
         sync: false
@@ -41,6 +43,11 @@ services:
         sync: false
       - key: ANTHROPIC_MODEL
         value: claude-opus-5-5
+      # TURN relay for peers behind strict NATs. Use Cloudflare, or TURN_URL + TURN_SHARED_SECRET.
+      - key: CLOUDFLARE_TURN_KEY_ID
+        sync: false
+      - key: CLOUDFLARE_TURN_API_TOKEN
+        sync: false
       - key: TURN_URL
         sync: false
       - key: TURN_SHARED_SECRET
