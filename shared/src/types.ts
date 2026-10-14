@@ -91,7 +91,7 @@ export interface ServerToClientEvents {
   "room:waiting-partner": () => void;
   "room:ended": (payload: { conversationId: string; reason: RoomEndReason; byPartner: boolean }) => void;
   "room:error": (payload: { message: string }) => void;
-  signal: (payload: { data: SignalPayload }) => void;
+  signal: (payload: { roomId: string; data: SignalPayload }) => void;
   "topic:update": (payload: { topic: Topic | null; loading: boolean; error?: string }) => void;
 }
 

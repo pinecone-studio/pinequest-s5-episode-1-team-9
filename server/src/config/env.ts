@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createHmac } from "node:crypto";
 
 const boolish = z
   .enum(["true", "false", "1", "0"])
@@ -28,8 +29,7 @@ const EnvSchema = z.object({
 
   STUN_URLS: z.string().default("stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302"),
   TURN_URL: z.string().optional(),
-  TURN_USERNAME: z.string().optional(),
-  TURN_CREDENTIAL: z.string().optional(),
+  TURN_SHARED_SECRET: z.string().optional(),
 
   /** Max CEFR distance the matcher will ever accept after expanding (1 = A2↔B1 allowed). */
   MATCH_MAX_LEVEL_DISTANCE: z.coerce.number().int().min(0).max(5).default(1),
@@ -40,6 +40,14 @@ const EnvSchema = z.object({
 
   /** Distinct reporters within 24h that trigger an automatic temporary suspension. */
   MODERATION_AUTO_SUSPEND_REPORTS: z.coerce.number().int().positive().default(3),
+}).superRefine((config, ctx) => {
+  if (config.TURN_URL && !config.TURN_SHARED_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["TURN_SHARED_SECRET"],
+      message: "TURN_SHARED_SECRET is required when TURN_URL is configured.",
+    });
+  }
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -66,8 +74,10 @@ export function iceServers() {
   const servers: { urls: string | string[]; username?: string; credential?: string }[] = [
     { urls: env.STUN_URLS.split(",").map((s) => s.trim()).filter(Boolean) },
   ];
-  if (env.TURN_URL) {
-    servers.push({ urls: env.TURN_URL, username: env.TURN_USERNAME, credential: env.TURN_CREDENTIAL });
+  if (env.TURN_URL && env.TURN_SHARED_SECRET) {
+    const username = `${Math.floor(Date.now() / 1000) + 86_400}:linguamatch`;
+    const credential = createHmac("sha1", env.TURN_SHARED_SECRET).update(username).digest("base64");
+    servers.push({ urls: env.TURN_URL, username, credential });
   }
   return servers;
 }

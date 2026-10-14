@@ -16,7 +16,7 @@ export function Logo({ className }: { className?: string }) {
   );
 }
 
-export function SiteHeader() {
+export function SiteHeader({ showStartAction = true }: { showStartAction?: boolean }) {
   const { user, logout } = useAuth();
   const router = useRouter();
 
@@ -48,18 +48,22 @@ export function SiteHeader() {
               >
                 <LogOut />
               </Button>
-              <Button size="sm" asChild className="ml-1">
-                <Link href={user.onboarded ? "/match" : "/onboarding"}>Start practicing</Link>
-              </Button>
+              {showStartAction && (
+                <Button size="sm" asChild className="ml-1">
+                  <Link href={user.onboarded ? "/match" : "/onboarding"}>Start practicing</Link>
+                </Button>
+              )}
             </>
           ) : (
             <>
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/login">Log in</Link>
               </Button>
-              <Button size="sm" asChild>
-                <Link href="/signup">Start practicing</Link>
-              </Button>
+              {showStartAction && (
+                <Button size="sm" asChild>
+                  <Link href="/signup">Start practicing</Link>
+                </Button>
+              )}
             </>
           )}
         </nav>

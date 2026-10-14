@@ -44,7 +44,5 @@ services:
         value: claude-opus-5-5
       - key: TURN_URL
         sync: false
-      - key: TURN_USERNAME
-        sync: false
-      - key: TURN_CREDENTIAL
+      - key: TURN_SHARED_SECRET
         sync: false

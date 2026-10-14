@@ -60,7 +60,7 @@ Environment variables on Render:
 | `ACCESS_TOKEN_TTL_MINUTES` | `15` |
 | `REFRESH_TOKEN_TTL_DAYS` | `30` |
 | `ANTHROPIC_API_KEY` | Optional |
-| `TURN_URL` / `TURN_USERNAME` / `TURN_CREDENTIAL` | Optional, recommended |
+| `TURN_URL` / `TURN_SHARED_SECRET` | Optional, recommended for Coturn-compatible TURN REST authentication |
 
 Don't set `PORT`; Render provides it. In Atlas, allow Render's outbound IPs (or `0.0.0.0/0`) under Network Access.
 
@@ -137,7 +137,7 @@ Fluency numbers are computed in code, not by the model. These are word or charac
 - **Pronunciation is not scored.** The browser recognizer gives no phoneme-level data, so the report shows "Not assessed" with an explanation. A real pronunciation API (for example Azure Pronunciation Assessment) would plug into `services/speech` behind `SpeechToTextProvider.supportsPronunciationAssessment`.
 - **Speech-to-text quality depends on the browser.** Chrome and Edge work, using the browser vendor's cloud service, which the consent text discloses. Firefox has no Web Speech API, and the room tells such users they won't get a report. Recognizers also hide some mistakes and drop filler words, so the AI is told to ignore likely recognition artifacts, and filler counts are labeled as a lower bound.
 - **Speaking rate is approximate.** It's based on when the recognizer first and last heard each phrase.
-- **NAT traversal:** STUN alone fails on some corporate or mobile networks. Set `TURN_URL`, `TURN_USERNAME` and `TURN_CREDENTIAL` for production.
+- **NAT traversal:** STUN alone fails on some corporate or mobile networks. Set `TURN_URL` and the server-only `TURN_SHARED_SECRET` for a Coturn-compatible TURN REST service. The API derives 24-hour credentials for each room; never put the shared secret in Vercel or a `NEXT_PUBLIC_*` variable.
 - **Single process:** the matchmaking queue and room state live in memory. To scale out, move them to Redis and add the Socket.IO Redis adapter.
 - **Moderation is basic:** reports, blocks, automatic 24-hour suspension after `MODERATION_AUTO_SUSPEND_REPORTS` distinct reporters, rate limits, and an 18+ rules agreement. There is no admin review UI or automated video/text content moderation yet.
 
