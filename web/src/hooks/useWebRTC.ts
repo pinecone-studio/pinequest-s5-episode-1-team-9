@@ -14,6 +14,10 @@ export function useWebRTC(socket: AppSocket | null, roomId: string, localStream:
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const pendingSignals = useRef<SignalPayload[]>([]);
+  const activeRoomId = useRef(roomId);
+  useEffect(() => {
+    activeRoomId.current = roomId;
+  }, [roomId]);
   const localStreamRef = useRef(localStream);
   localStreamRef.current = localStream;
 
@@ -21,19 +25,32 @@ export function useWebRTC(socket: AppSocket | null, roomId: string, localStream:
   const [state, setState] = useState<PeerState>("idle");
 
   const close = useCallback(() => {
-    pcRef.current?.close();
+    const pc = pcRef.current;
+    if (pc) {
+      pc.ontrack = null;
+      pc.onicecandidate = null;
+      pc.onconnectionstatechange = null;
+      pc.close();
+    }
     pcRef.current = null;
+    activeRoomId.current = "";
     pendingCandidates.current = [];
+    pendingSignals.current = [];
     setRemoteStream(null);
+    setState("idle");
   }, []);
 
   const sendSignal = useCallback(
-    (data: SignalPayload) => socket?.emit("signal", { roomId, data }),
-    [socket, roomId],
+    (data: SignalPayload) => {
+      const activeId = activeRoomId.current;
+      if (activeId) socket?.emit("signal", { roomId: activeId, data });
+    },
+    [socket],
   );
 
   const flushCandidates = async (pc: RTCPeerConnection) => {
     for (const c of pendingCandidates.current.splice(0)) {
+      if (pcRef.current !== pc) return;
       await pc.addIceCandidate(c).catch((e) => console.warn("[rtc] addIceCandidate", e));
     }
   };
@@ -48,16 +65,22 @@ export function useWebRTC(socket: AppSocket | null, roomId: string, localStream:
       try {
         if (data.type === "offer") {
           await pc.setRemoteDescription({ type: "offer", sdp: data.sdp });
+          if (pcRef.current !== pc) return;
           await flushCandidates(pc);
+          if (pcRef.current !== pc) return;
           const answer = await pc.createAnswer();
+          if (pcRef.current !== pc) return;
           await pc.setLocalDescription(answer);
+          if (pcRef.current !== pc) return;
           sendSignal({ type: "answer", sdp: answer.sdp ?? "" });
         } else if (data.type === "answer") {
           if (pc.signalingState === "have-local-offer") {
             await pc.setRemoteDescription({ type: "answer", sdp: data.sdp });
+            if (pcRef.current !== pc) return;
             await flushCandidates(pc);
           }
         } else if (data.type === "candidate") {
+          if (pcRef.current !== pc) return;
           if (pc.remoteDescription) await pc.addIceCandidate(data.candidate as RTCIceCandidateInit);
           else pendingCandidates.current.push(data.candidate as RTCIceCandidateInit);
         }
@@ -71,7 +94,9 @@ export function useWebRTC(socket: AppSocket | null, roomId: string, localStream:
   /** (Re)creates the peer connection. Called on every room:ready (including after a partner refresh). */
   const start = useCallback(
     async (role: "caller" | "callee", iceServers: RTCIceServerLike[]) => {
+      const earlySignals = pendingSignals.current.splice(0);
       close();
+      activeRoomId.current = roomId;
       setState("connecting");
       const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
@@ -87,20 +112,22 @@ export function useWebRTC(socket: AppSocket | null, roomId: string, localStream:
       const remote = new MediaStream();
       setRemoteStream(remote);
       pc.ontrack = (e) => {
+        if (pcRef.current !== pc) return;
         if (!remote.getTracks().includes(e.track)) remote.addTrack(e.track);
         setRemoteStream(new MediaStream(remote.getTracks()));
       };
       pc.onicecandidate = (e) => {
-        if (e.candidate) sendSignal({ type: "candidate", candidate: e.candidate.toJSON() });
+        if (pcRef.current === pc && e.candidate) sendSignal({ type: "candidate", candidate: e.candidate.toJSON() });
       };
       pc.onconnectionstatechange = () => {
+        if (pcRef.current !== pc) return;
         const s = pc.connectionState;
         if (s === "connected") setState("connected");
         else if (s === "disconnected") setState("reconnecting");
         else if (s === "failed") setState("failed");
       };
 
-      for (const queued of pendingSignals.current.splice(0)) await handleSignal(queued);
+      for (const queued of earlySignals) await handleSignal(queued);
 
       if (role === "caller") {
         const offer = await pc.createOffer();
@@ -113,7 +140,9 @@ export function useWebRTC(socket: AppSocket | null, roomId: string, localStream:
 
   useEffect(() => {
     if (!socket) return;
-    const onSignal = ({ data }: { data: SignalPayload }) => void handleSignal(data);
+    const onSignal = ({ roomId: signalRoomId, data }: { roomId: string; data: SignalPayload }) => {
+      if (signalRoomId === activeRoomId.current) void handleSignal(data);
+    };
     socket.on("signal", onSignal);
     return () => {
       socket.off("signal", onSignal);

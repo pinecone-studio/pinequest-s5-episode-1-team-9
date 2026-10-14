@@ -213,7 +213,7 @@ export async function relaySignal(socket: AppSocket, sessionId: string, data: Si
   const userId = socket.data.userId;
   if (!state || state.sockets.get(userId) !== socket.id) return;
   for (const [otherId, sid] of state.sockets) {
-    if (otherId !== userId) getIO().to(sid).emit("signal", { data });
+    if (otherId !== userId) getIO().to(sid).emit("signal", { roomId: conversationId, data });
   }
 }
 

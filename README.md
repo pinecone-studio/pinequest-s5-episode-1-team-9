@@ -62,7 +62,7 @@ Environment variables on Render:
 | `CLERK_SECRET_KEY` | Clerk production instance secret key (`sk_live_…`). |
 | `CLERK_PUBLISHABLE_KEY` | Clerk production instance publishable key (`pk_live_…`). |
 | `ANTHROPIC_API_KEY` | Optional |
-| `TURN_URL` / `TURN_USERNAME` / `TURN_CREDENTIAL` | Optional, recommended |
+| `TURN_URL` / `TURN_SHARED_SECRET` | Optional, recommended for Coturn-compatible TURN REST authentication |
 
 Don't set `PORT`; Render provides it.
 
@@ -143,7 +143,7 @@ Fluency numbers are computed in code, not by the model. These are word or charac
 - **Pronunciation is not scored.** The browser recognizer gives no phoneme-level data, so the report shows "Not assessed" with an explanation. A real pronunciation API (for example Azure Pronunciation Assessment) would plug into `services/speech` behind `SpeechToTextProvider.supportsPronunciationAssessment`.
 - **Speech-to-text quality depends on the browser.** Chrome and Edge work, using the browser vendor's cloud service, which the consent text discloses. Firefox has no Web Speech API, and the room tells such users they won't get a report. Recognizers also hide some mistakes and drop filler words, so the AI is told to ignore likely recognition artifacts, and filler counts are labeled as a lower bound.
 - **Speaking rate is approximate.** It's based on when the recognizer first and last heard each phrase.
-- **NAT traversal:** STUN alone fails on some corporate or mobile networks. Set `TURN_URL`, `TURN_USERNAME` and `TURN_CREDENTIAL` for production.
+- **NAT traversal:** STUN alone fails on some corporate or mobile networks. Set `TURN_URL` and the server-only `TURN_SHARED_SECRET` for a Coturn-compatible TURN REST service. The API derives 24-hour credentials for each room; never put the shared secret in Vercel or a `NEXT_PUBLIC_*` variable.
 - **Single process:** the matchmaking queue and room state live in memory. To scale out, move them to Redis and add the Socket.IO Redis adapter.
 - **Moderation combines human reports with real-time AI review of text and camera frames.** Users can report or block a partner, reporting also blocks, and several distinct reporters within a day trigger a 24-hour automatic suspension. At the same time, a background sweep scans each active conversation's fresh transcript with the AI provider and, when it clearly detects harassment, sexual, hate, minor-solicitation or spam content, files a report (as the reserved `LinguaMatch_AI` account, marked with an `aiFlag`) and suspends the offender for `AI_MODERATION_SUSPEND_DAYS` days, ending the call. When `AI_MODERATION_VIDEO_ENABLED` is set, the sweep also runs the same AI over periodic still frames the client samples from its **own** camera (compressed, ~every 20s, capped in size and rate); frames are analyzed **in memory and never stored**, and vision uses stricter thresholds than text. Audio is still peer-to-peer and never reaches the server, so only text and sampled frames are moderated. AI moderation is conservative (severity/confidence thresholds) but not perfect; human review of every AI report remains the backstop.
 
