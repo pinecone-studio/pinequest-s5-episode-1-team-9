@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Friends</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=Unbounded:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#F6F7FB}
+a{color:#3B63E8}a:hover{color:#2647B8}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #F0A532;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F6F7FB; color: #1C1A45; font-family: 'Onest', system-ui, sans-serif;">
+<header style="max-width: 1240px; margin: 0 auto; padding: 20px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #1C1A45;">
+    <span aria-hidden="true" style="display: flex; gap: 3px;"><span style="display: block; width: 22px; height: 12px; border-radius: 6px; background: #3B63E8;"></span><span style="display: block; width: 14px; height: 12px; border-radius: 6px; background: #F0A532;"></span></span>
+    <span style="font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 20px;">LinguaMatch</span>
+  </a>
+  <nav aria-label="Main" style="display: flex; gap: 6px; align-items: center;">
+    <a href="Profile.dc.html" style="padding: 12px; color: #1C1A45; text-decoration: none; font-weight: 500;">Profile</a>
+    <a href="Main.dc.html" style="min-height: 48px; padding: 0 20px; display: inline-flex; align-items: center; border-radius: 14px; background: #3B63E8; color: #FFFFFF; text-decoration: none; font-weight: 700;">Start a call</a>
+  </nav>
+</header>
+
+<main style="max-width: 1240px; margin: 0 auto; padding: 12px 24px 72px; display: flex; flex-direction: column; gap: 24px;">
+  <h1 style="margin: 0; font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.02em;">Friends</h1>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+    <div style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+      <section aria-labelledby="add" style="background: #FFFFFF; border: 1px solid #E1E4F0; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+        <h2 id="add" style="margin: 0; font-size: 20px;">Add a friend</h2>
+        <div style="display: flex; gap: 8px;">
+          <label for="uname" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Username</label>
+          <input id="uname" type="text" value="tugu" style="flex: 1; min-width: 0; min-height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid #D6DAEA; background: #FFFFFF; color: #1C1A45; font: 16px 'Onest', sans-serif;">
+        </div>
+        <div style="display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 14px; background: #F6F7FB;">
+          <span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 50%; background: #F0A532; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">T</span>
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column;"><span style="font-weight: 600;">Tuguldur</span><span style="font-size: 14px; color: #5B6085;">@tugu_b2, English B2</span></span>
+          <button type="button" style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: #3B63E8; color: #FFFFFF; font: 700 15px 'Onest', sans-serif; cursor: pointer;">Add</button>
+        </div>
+      </section>
+
+      <section aria-labelledby="req" style="background: #FFF4E0; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 12px;">
+        <h2 id="req" style="margin: 0; font-size: 20px;">Requests</h2>
+        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+          <span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 50%; background: #F0A532; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">S</span>
+          <span style="flex: 1; min-width: 140px; display: flex; flex-direction: column;"><span style="font-weight: 600;">Sara wants to be friends</span><span style="font-size: 14px; color: #5C4A26;">You talked on Monday, 31 min</span></span>
+          <span style="display: flex; gap: 8px;">
+            <button type="button" style="min-height: 44px; padding: 0 14px; border: 1px solid #D9B26A; border-radius: 12px; background: #FFFFFF; color: #1C1A45; font: 600 15px 'Onest', sans-serif; cursor: pointer;">Decline</button>
+            <button type="button" style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: #23A86B; color: #FFFFFF; font: 700 15px 'Onest', sans-serif; cursor: pointer;">Accept</button>
+          </span>
+        </div>
+        <span style="font-size: 14px; color: #5C4A26;">Sent by you: @erdene_a1, waiting</span>
+      </section>
+    </div>
+
+    <section aria-labelledby="list" style="flex: 1.5 1 480px; min-width: 0; background: #FFFFFF; border: 1px solid #E1E4F0; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 4px;">
+      <h2 id="list" style="margin: 0 0 10px; font-size: 20px;">Your friends</h2>
+
+      <div style="display: flex; align-items: center; gap: 14px; padding: 14px 4px; border-bottom: 1px solid #EEF0F7; flex-wrap: wrap;">
+        <span style="position: relative; flex-shrink: 0;"><span aria-hidden="true" style="width: 48px; height: 48px; border-radius: 50%; background: #F0A532; display: flex; align-items: center; justify-content: center; font-weight: 700;">M</span><span aria-hidden="true" style="position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; border-radius: 50%; background: #23A86B; border: 2px solid #FFFFFF;"></span></span>
+        <span style="flex: 1; min-width: 140px; display: flex; flex-direction: column;"><span style="font-weight: 600;">Maya</span><span style="font-size: 14px; color: #17804F; font-weight: 600;">Online</span></span>
+        <span style="display: flex; gap: 6px; align-items: center;">
+          <button type="button" style="min-height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: #3B63E8; color: #FFFFFF; font: 700 15px 'Onest', sans-serif; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>Call</button>
+          <button type="button" aria-label="More options for Maya" style="width: 44px; height: 44px; border: 1px solid #D6DAEA; border-radius: 12px; background: #FFFFFF; color: #1C1A45; cursor: pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 6h.01M12 12h.01M12 18h.01"/></svg></button>
+        </span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 14px; padding: 14px 4px; border-bottom: 1px solid #EEF0F7; flex-wrap: wrap;">
+        <span style="position: relative; flex-shrink: 0;"><span aria-hidden="true" style="width: 48px; height: 48px; border-radius: 50%; background: #F0A532; display: flex; align-items: center; justify-content: center; font-weight: 700;">A</span><span aria-hidden="true" style="position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; border-radius: 50%; background: #F0A532; border: 2px solid #FFFFFF;"></span></span>
+        <span style="flex: 1; min-width: 140px; display: flex; flex-direction: column;"><span style="font-weight: 600;">Anu</span><span style="font-size: 14px; color: #8A5300; font-weight: 600;">In a call</span></span>
+        <span style="display: flex; gap: 6px; align-items: center;">
+          <button type="button" disabled style="min-height: 44px; padding: 0 16px; border: 1px solid #D6DAEA; border-radius: 12px; background: #F6F7FB; color: #8A8FB0; font: 700 15px 'Onest', sans-serif;">Busy</button>
+          <button type="button" aria-label="More options for Anu" style="width: 44px; height: 44px; border: 1px solid #D6DAEA; border-radius: 12px; background: #FFFFFF; color: #1C1A45; cursor: pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 6h.01M12 12h.01M12 18h.01"/></svg></button>
+        </span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 14px; padding: 14px 4px; flex-wrap: wrap;">
+        <span style="position: relative; flex-shrink: 0;"><span aria-hidden="true" style="width: 48px; height: 48px; border-radius: 50%; background: #D6DAEA; color: #4E537A; display: flex; align-items: center; justify-content: center; font-weight: 700;">T</span></span>
+        <span style="flex: 1; min-width: 140px; display: flex; flex-direction: column;"><span style="font-weight: 600;">Temuulen</span><span style="font-size: 14px; color: #5B6085;">Offline, seen 2 hours ago</span></span>
+        <span style="display: flex; gap: 6px; align-items: center;">
+          <button type="button" disabled style="min-height: 44px; padding: 0 16px; border: 1px solid #D6DAEA; border-radius: 12px; background: #F6F7FB; color: #8A8FB0; font: 700 15px 'Onest', sans-serif;">Offline</button>
+          <button type="button" aria-label="More options for Temuulen" style="width: 44px; height: 44px; border: 1px solid #D6DAEA; border-radius: 12px; background: #FFFFFF; color: #1C1A45; cursor: pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 6h.01M12 12h.01M12 18h.01"/></svg></button>
+        </span>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: #F6F7FB;">
+        <span style="flex: 1; min-width: 180px; font-size: 14px; color: #4E537A;">Options for Maya</span>
+        <button type="button" style="min-height: 44px; padding: 0 14px; border: 1px solid #D6DAEA; border-radius: 12px; background: #FFFFFF; color: #1C1A45; font: 600 15px 'Onest', sans-serif; cursor: pointer;">Unfriend</button>
+        <button type="button" style="min-height: 44px; padding: 0 14px; border: 1px solid #E8B4B4; border-radius: 12px; background: #FFFFFF; color: #A12B2B; font: 600 15px 'Onest', sans-serif; cursor: pointer;">Block</button>
+      </div>
+    </section>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
