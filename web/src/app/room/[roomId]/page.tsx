@@ -26,6 +26,7 @@ import { useFrameSampler, type SampledFrame } from "@/hooks/useFrameSampler";
 import { useLocalMedia } from "@/hooks/useLocalMedia";
 import { useSpeechRecognition, type RecognizedSegment } from "@/hooks/useSpeechRecognition";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { useRoleplay } from "@/hooks/useRoleplay";
 import { useRequireUser } from "@/lib/auth";
 import { currentSocket, getSocket, type AppSocket } from "@/lib/socket";
 import { cn, formatClock } from "@/lib/utils";
@@ -49,6 +50,7 @@ export default function RoomPage() {
   const [ended, setEnded] = useState<{ reason: RoomEndReason } | null>(null);
   const [dialog, setDialog] = useState<null | "report" | "block">(null);
   const [now, setNow] = useState(Date.now());
+  const roleplay = useRoleplay(socket, roomId, Boolean(info) && !ended);
 
   /** What *I* did, so we know where to go when the server confirms the room ended. */
   const myAction = useRef<null | "ended" | "next" | "moderation">(null);
@@ -257,6 +259,7 @@ export default function RoomPage() {
           error={topicError}
           onNewTopic={() => socket?.emit("topic:request", { roomId })}
           speech={{ status: consent ? speech.status : "off", muted: !media.micOn }}
+          roleplay={roleplay}
         />
       </main>
 

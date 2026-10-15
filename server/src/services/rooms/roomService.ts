@@ -16,6 +16,7 @@ import type { MatchPair } from "../matchmaking/algorithm";
 import { clearModerationBuffer, recordForModeration, recordFrameForModeration } from "../moderation/aiModerationQueue";
 import { iceServers } from "../rtc/iceServers";
 import { sanitizeSegment } from "../speech";
+import { clearRoleplay } from "../roleplay/roleplayService";
 import { pickTopic } from "../topics/aiTopics";
 import { awardXpForSession } from "../xp/xpService";
 
@@ -359,6 +360,7 @@ export async function endSession(sessionId: string, byUserId: string | null, rea
   if (state) for (const key of [...state.timers.keys()]) clearTimer(state, key);
   rooms.delete(sessionId);
   clearModerationBuffer(sessionId);
+  clearRoleplay(sessionId);
   if (!ended) return;
 
   const io = getIO();

@@ -12,6 +12,7 @@ import {
   setQueuedCheck,
   startCall,
 } from "../services/friends/friendCalls";
+import { endRoleplay, startRoleplay, syncRoleplay } from "../services/roleplay/roleplayService";
 import { findOrCreateUser } from "../models/User";
 import {
   addTranscriptSegment,
@@ -146,6 +147,27 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "frame:sample",
       safe(socket, async (payload) => {
         if (isRoomId(payload?.roomId)) await addVideoFrame(socket, payload);
+      }),
+    );
+
+    socket.on(
+      "roleplay:start",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await startRoleplay(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
+      "roleplay:end",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await endRoleplay(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
+      "roleplay:sync",
+      safe(socket, (payload) => {
+        if (isRoomId(payload?.roomId)) syncRoleplay(payload.roomId, userId);
       }),
     );
 

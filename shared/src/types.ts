@@ -161,6 +161,15 @@ export type FriendCallStatus =
   | "timeout"
   | "cancelled";
 
+export interface RoleplayCard {
+  scenarioTitle: string;
+  roleName: string;
+  situation: string;
+  secretGoal: string;
+  partnerRoleName: string;
+  level: CefrLevel;
+}
+
 export interface FriendCallInvite {
   inviteId: string;
   from: { id: string; username: string };
@@ -182,6 +191,9 @@ export interface ClientToServerEvents {
   "friend:accept": (payload: { inviteId: string }) => void;
   "friend:decline": (payload: { inviteId: string }) => void;
   "friend:cancel": (payload: { inviteId: string }) => void;
+  "roleplay:start": (payload: { roomId: string }) => void;
+  "roleplay:end": (payload: { roomId: string }) => void;
+  "roleplay:sync": (payload: { roomId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -213,6 +225,7 @@ export interface ServerToClientEvents {
     message?: string;
   }) => void;
   "friend:incoming-cancelled": (payload: { inviteId: string }) => void;
+  "roleplay:card": (payload: { card: RoleplayCard | null; loading: boolean; error?: string }) => void;
 }
 
 export interface RTCIceServerLike {
