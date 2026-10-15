@@ -77,10 +77,10 @@ export function CallStage() {
       <StageHeader online={online} />
 
       <div className="flex flex-1 flex-wrap items-stretch gap-5 px-5 py-5 sm:px-6">
-        <div className="flex min-w-0 shrink basis-160 flex-col gap-4 grow-[999]">
+        <div className="bg-panel flex min-w-0 shrink basis-160 flex-col gap-3.5 rounded-[22px] p-3.5 grow-[999]">
           <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3.5">
             {searching ? (
-              <PartnerSearchingTile level={level ?? "B1"} elapsed={stage.elapsed} />
+              <PartnerSearchingTile language={language} level={level ?? "B1"} elapsed={stage.elapsed} />
             ) : (
               <PartnerIdleTile />
             )}

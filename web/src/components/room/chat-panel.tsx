@@ -33,7 +33,7 @@ export function ChatPanel({ chat, myUserId }: { chat: Chat; myUserId: string }) 
   const suggestion = assist && assist.mode !== "ok" ? (assist.mode === "translate" ? assist.english : assist.fixed) : null;
 
   return (
-    <section aria-label="Chat" className="bg-panel flex flex-col gap-3.5 rounded-[22px] p-4.5">
+    <section aria-label="Chat" className="flex flex-col gap-3.5 border-t border-white/10 pt-3.5">
       <div ref={listRef} className="max-h-52 overflow-y-auto pr-1">
         {chat.messages.length === 0 ? (
           <p className="text-dim-dark m-0 text-[15px] leading-[1.5]">

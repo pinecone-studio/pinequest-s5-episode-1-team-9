@@ -215,6 +215,8 @@ export async function toFeedbackDTO(feedback: FeedbackReport): Promise<FeedbackD
         createdAt: sessions.createdAt,
         userA: sessions.userA,
         userB: sessions.userB,
+        userALevel: sessions.userALevel,
+        userBLevel: sessions.userBLevel,
       })
       .from(sessions)
       .where(eq(sessions.id, feedback.sessionId)),
@@ -233,7 +235,9 @@ export async function toFeedbackDTO(feedback: FeedbackReport): Promise<FeedbackD
   return {
     id: feedback.id,
     conversationId: feedback.sessionId,
-    partnerName: !partner || partner.deletedAt ? "your partner" : partner.name,
+    partnerName: !partner || partner.deletedAt ? "Your partner" : partner.name,
+    partnerLevel: ((session && (session.userA === feedback.userId ? session.userBLevel : session.userALevel)) ??
+      feedback.level) as FeedbackDTO["partnerLevel"],
     status: feedback.status,
     statusMessage: feedback.statusMessage,
     targetLanguage: feedback.targetLanguage,

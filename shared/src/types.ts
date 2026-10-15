@@ -131,6 +131,8 @@ export interface FriendDTO {
   id: string;
   username: string;
   nativeLanguage: string | null;
+  language: string | null;
+  level: CefrLevel | null;
   online: boolean;
   busy: boolean;
 }
@@ -233,7 +235,7 @@ export interface RoleplayCard {
 
 export interface FriendCallInvite {
   inviteId: string;
-  from: { id: string; username: string };
+  from: { id: string; username: string; level: CefrLevel };
   targetLanguage: string;
   expiresInSeconds: number;
 }
@@ -350,6 +352,7 @@ export interface FeedbackDTO {
   id: string;
   conversationId: string;
   partnerName: string;
+  partnerLevel: CefrLevel;
   status: FeedbackStatus;
   statusMessage: string | null;
   targetLanguage: string;

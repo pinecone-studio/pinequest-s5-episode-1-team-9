@@ -1,6 +1,6 @@
 "use client";
 
-import { languageName, type FriendCallInvite } from "@linguamatch/shared";
+import { languageName, levelShort, type FriendCallInvite } from "@linguamatch/shared";
 import { Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -80,7 +80,8 @@ export function IncomingCallDialog() {
           {invite.from.username} is calling
         </h2>
         <p id="friend-call-desc" className="text-dim m-0 leading-[1.5]">
-          Video call in {languageName(invite.targetLanguage)}. {invite.from.username} is your friend.
+          Video call in {languageName(invite.targetLanguage)}. {invite.from.username} is your friend at{" "}
+          {levelShort(invite.targetLanguage, invite.from.level)}.
         </p>
 
         <div className="flex w-full flex-col gap-1.5">

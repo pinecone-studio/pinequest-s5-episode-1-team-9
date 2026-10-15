@@ -1,6 +1,12 @@
 "use client";
 
-import { languageName, type FriendDTO, type FriendRequestsDTO, type UserSearchResultDTO } from "@linguamatch/shared";
+import {
+  languageName,
+  levelShort,
+  type FriendDTO,
+  type FriendRequestsDTO,
+  type UserSearchResultDTO,
+} from "@linguamatch/shared";
 import { Ban, PhoneCall, Search, UserMinus, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -232,7 +238,9 @@ export default function FriendsPage() {
                       <span className="font-semibold">{f.username}</span>
                       <span className="text-sm text-[#5B6085]">
                         {!f.online ? "Offline" : f.busy ? "In a call" : "Online now"}
-                        {f.nativeLanguage ? ` · speaks ${languageName(f.nativeLanguage)}` : ""}
+                        {f.language && f.level
+                          ? ` · ${languageName(f.language)} ${levelShort(f.language, f.level)}`
+                          : ""}
                       </span>
                     </span>
                   </span>

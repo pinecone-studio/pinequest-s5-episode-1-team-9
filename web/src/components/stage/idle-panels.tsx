@@ -8,7 +8,7 @@ const FIRST_QUESTIONS = [
 
 export function IdleChat() {
   return (
-    <section aria-label="Chat" className="bg-panel flex flex-col gap-3.5 rounded-[22px] p-4.5">
+    <section aria-label="Chat" className="flex flex-col gap-3.5 border-t border-white/10 pt-3.5">
       <div className="text-dim-dark flex min-h-24 items-center justify-center rounded-[14px] border border-dashed border-white/18 p-4 text-center leading-[1.5]">
         Chat opens when you&apos;re matched. Stuck on a word? Write it in Mongolian and press Fix.
       </div>

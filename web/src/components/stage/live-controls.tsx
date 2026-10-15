@@ -20,7 +20,7 @@ export function LiveControls({
   onReport: () => void;
 }) {
   return (
-    <div className="bg-panel grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5 rounded-[22px] p-3.5">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
       <button
         type="button"
         onClick={onToggleMic}

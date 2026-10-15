@@ -1,6 +1,12 @@
 "use client";
 
-import { TARGET_LANGUAGES, languageName, type AssessmentQuestion, type AssessmentResult } from "@linguamatch/shared";
+import {
+  TARGET_LANGUAGES,
+  languageName,
+  levelShort,
+  type AssessmentQuestion,
+  type AssessmentResult,
+} from "@linguamatch/shared";
 import { Loader2, Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -138,7 +144,7 @@ function Assessment() {
           <CardHeader>
             <CardDescription>Estimated {languageName(lang)} level</CardDescription>
             <CardTitle className="flex items-center gap-3 text-4xl">
-              {result.level}
+              {levelShort(assessment.targetLanguage, result.level)}
               <Badge variant="outline" className="text-xs font-normal">{result.confidence} confidence</Badge>
             </CardTitle>
           </CardHeader>
@@ -158,7 +164,7 @@ function Assessment() {
                   })
                 }
               >
-                Use {result.level} and start practicing
+                Use {levelShort(assessment.targetLanguage, result.level)} and start practicing
               </Button>
               {currentLevel && currentLevel !== result.level && (
                 <Button variant="outline" onClick={() => router.push("/")}>

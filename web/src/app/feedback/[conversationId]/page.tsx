@@ -1,6 +1,6 @@
 "use client";
 
-import { languageName, type FeedbackDTO } from "@linguamatch/shared";
+import { languageName, levelShort, type FeedbackDTO } from "@linguamatch/shared";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -55,7 +55,7 @@ export default function FeedbackPage() {
   const subtitle = feedback
     ? [
         formatDuration(feedback.conversation.durationSeconds),
-        `in ${languageName(feedback.targetLanguage)}, ${feedback.level}`,
+        `in ${languageName(feedback.targetLanguage)}, ${levelShort(feedback.targetLanguage, feedback.level)}`,
         feedback.conversation.topics.length > 0 ? `Topics: ${feedback.conversation.topics.join(", ")}.` : null,
       ]
         .filter(Boolean)
@@ -80,7 +80,9 @@ export default function FeedbackPage() {
       <main className="mx-auto flex max-w-[1240px] flex-col gap-7 px-6 pt-4 pb-18">
         <div className="flex flex-col gap-2">
           <h1 className="font-display m-0 text-[clamp(30px,4vw,44px)] font-bold tracking-[-0.02em]">
-            {feedback ? `Your call with ${feedback.partnerName}` : "Your call"}
+            {feedback
+              ? `Your call with ${feedback.partnerName}, ${levelShort(feedback.targetLanguage, feedback.partnerLevel)}`
+              : "Your call"}
           </h1>
           {subtitle && <p className="text-dim m-0 text-[17px]">{subtitle}</p>}
         </div>

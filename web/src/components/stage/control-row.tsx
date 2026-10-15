@@ -1,16 +1,14 @@
 "use client";
 
-import { CEFR_LEVELS, TARGET_LANGUAGES, languageName, type CefrLevel } from "@linguamatch/shared";
+import {
+  TARGET_LANGUAGES,
+  languageName,
+  levelLabel,
+  levelOptions,
+  levelScaleNote,
+  type CefrLevel,
+} from "@linguamatch/shared";
 import { ChevronDown, Play, Square } from "lucide-react";
-
-const LEVEL_LABEL: Record<CefrLevel, string> = {
-  A1: "A1 Beginner",
-  A2: "A2 Elementary",
-  B1: "B1 Intermediate",
-  B2: "B2 Upper intermediate",
-  C1: "C1 Advanced",
-  C2: "C2 Proficient",
-};
 
 const SHELL =
   "min-h-16 flex items-center justify-center gap-2.5 rounded-2xl text-[20px] font-extrabold";
@@ -33,7 +31,7 @@ export function IdleControls({
   onLevel: (level: CefrLevel) => void;
 }) {
   return (
-    <div className="bg-panel grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5 rounded-[22px] p-3.5">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
       <button type="button" onClick={onStart} className={`${SHELL} bg-brand-partner text-ink cursor-pointer border-0`}>
         <Play className="size-5.5 fill-current" />
         Start
@@ -65,17 +63,17 @@ export function IdleControls({
         </select>
       </Picker>
 
-      <Picker label="Proficiency level" value={level ? LEVEL_LABEL[level] : "Choose"} tinted>
+      <Picker label="Proficiency level" value={level ? levelLabel(language, level) : "Choose"} tinted note={levelScaleNote(language)}>
         <select
-          aria-label={`Proficiency level: ${level ? LEVEL_LABEL[level] : "not set"}`}
+          aria-label={`Proficiency level: ${level ? levelLabel(language, level) : "not set"}`}
           value={level ?? ""}
           onChange={(e) => onLevel(e.target.value as CefrLevel)}
           className="absolute inset-0 size-full cursor-pointer opacity-0"
         >
           {!level && <option value="">Choose a level</option>}
-          {CEFR_LEVELS.map((l) => (
-            <option key={l} value={l}>
-              {LEVEL_LABEL[l]}
+          {levelOptions(language).map((l) => (
+            <option key={l.value} value={l.value}>
+              {l.label}
             </option>
           ))}
         </select>
@@ -88,11 +86,13 @@ function Picker({
   label,
   value,
   tinted,
+  note,
   children,
 }: {
   label: string;
   value: string;
   tinted: boolean;
+  note?: string | null;
   children: React.ReactNode;
 }) {
   return (
@@ -106,6 +106,7 @@ function Picker({
         <span className="text-[17px] font-bold text-white">{value}</span>
       </span>
       <ChevronDown aria-hidden="true" className="size-4.5 shrink-0 text-white" />
+      {note && <span className="sr-only">{note}</span>}
       {children}
     </div>
   );
@@ -125,10 +126,12 @@ export function SearchingControls({
   onStop: () => void;
 }) {
   return (
-    <div className="bg-panel flex flex-wrap items-center justify-between gap-4 rounded-[22px] p-4.5">
+    <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-col gap-1">
         <span className="font-semibold text-white">
-          {[language ? languageName(language) : null, level, mode].filter(Boolean).join(", ")}
+          {[language ? languageName(language) : null, level ? levelLabel(language, level) : null, mode]
+            .filter(Boolean)
+            .join(", ")}
         </span>
         <span className="text-dim-dark text-[15px]">
           {waiting === null ? "Looking for a partner…" : `${waiting} learners waiting right now`}

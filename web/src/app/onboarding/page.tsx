@@ -133,7 +133,7 @@ export default function OnboardingPage() {
             <CardDescription>Based on the Common European Framework (CEFR). Pick the one that sounds most like you.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <LevelPicker value={level} onChange={setLevel} />
+            <LevelPicker value={level} onChange={setLevel} language={targetLanguage} />
             <div className="bg-primary/5 flex flex-col items-start justify-between gap-3 rounded-lg border border-primary/20 p-4 sm:flex-row sm:items-center">
               <div className="flex gap-3">
                 <Sparkles className="text-primary mt-0.5 size-5 shrink-0" />

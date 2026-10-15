@@ -3,6 +3,7 @@
 import {
   getTargetLanguage,
   languageName,
+  levelShort,
   type CefrLevel,
   type PartnerInfo,
   type RoomEndReason,
@@ -220,7 +221,8 @@ export function LiveCall({
 
   const elapsed = info ? (now - info.startedAt) / 1000 : 0;
   const partner = info?.partner;
-  const partnerName = partner?.displayName ?? "Partner";
+  const partnerName = partner?.displayName ?? "Your partner";
+  const partnerLevel = partner ? levelShort(info?.targetLanguage, partner.level) : "";
   const roleSuffix = roleplay.card ? ` as the ${roleplay.card.partnerRoleName}` : "";
   const myRole = roleplay.card ? ` as the ${roleplay.card.roleName}` : "";
 
@@ -228,22 +230,18 @@ export function LiveCall({
     <section aria-label="In a call" className="bg-stage flex min-h-dvh flex-col text-white">
       <StageHeader online={online} compact>
         <span className="rounded-full bg-white/8 px-3 py-2">
-          {info ? `${languageName(info.targetLanguage)}, ${info.yourLevel}` : "Connecting…"}
+          {info ? `${languageName(info.targetLanguage)}, ${levelShort(info.targetLanguage, info.yourLevel)}` : "Connecting…"}
         </span>
         <span className="rounded-full bg-white/8 px-3 py-2 tabular-nums">{formatClock(elapsed)}</span>
       </StageHeader>
 
       <main className="flex flex-1 flex-wrap items-start gap-5 px-5 py-5 sm:px-6">
-        <div className="flex min-w-0 shrink basis-160 flex-col gap-4 grow-[999]">
+        <div className="bg-panel flex min-w-0 shrink basis-160 flex-col gap-3.5 rounded-[22px] p-3.5 grow-[999]">
           <div ref={floatLayer} className="relative grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3.5">
             <VideoTile
               stream={rtc.remoteStream}
               side="partner"
-              label={
-                partner
-                  ? `${partnerName}${roleSuffix || `, ${partner.level}`}`
-                  : "Connecting to your partner…"
-              }
+              label={partner ? `${partnerName}${roleSuffix}, ${partnerLevel}` : "Connecting to your partner…"}
               initial={partnerName.charAt(0).toUpperCase()}
               placeholder={
                 !partnerPresent ? (
