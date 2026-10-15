@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "prefers_video" boolean DEFAULT true NOT NULL;

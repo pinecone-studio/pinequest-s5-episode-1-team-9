@@ -84,7 +84,13 @@ export class Matchmaker {
     ]);
     const [row] = await db
       .insert(queue)
-      .values({ userId, nativeLanguage: user.nativeLang, lang: targetLanguage, level: profile.level })
+      .values({
+        userId,
+        nativeLanguage: user.nativeLang,
+        lang: targetLanguage,
+        level: profile.level,
+        mode: user.prefersVideo ? "video" : "voice",
+      })
       .returning({ id: queue.id });
 
     const entry: LiveEntry = {

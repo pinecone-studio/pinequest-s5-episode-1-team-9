@@ -67,6 +67,7 @@ const SettingsSchema = z.object({
   privacy: z
     .object({ transcriptionConsent: z.boolean().optional(), retainTranscripts: z.boolean().optional() })
     .optional(),
+  prefersVideo: z.boolean().optional(),
 });
 
 usersRouter.patch("/settings", async (req, res) => {
@@ -83,6 +84,7 @@ usersRouter.patch("/settings", async (req, res) => {
   }
   if (body.privacy?.transcriptionConsent !== undefined) patch.transcriptionConsent = body.privacy.transcriptionConsent;
   if (body.privacy?.retainTranscripts !== undefined) patch.retainTranscripts = body.privacy.retainTranscripts;
+  if (body.prefersVideo !== undefined) patch.prefersVideo = body.prefersVideo;
   const updated = Object.keys(patch).length ? await saveUser(user.id, patch) : user;
   res.json({ user: toUserDTO(updated) });
 });

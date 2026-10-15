@@ -141,6 +141,7 @@ export const api = {
     nativeLanguage?: string;
     activeTargetLanguage?: string;
     privacy?: { transcriptionConsent?: boolean; retainTranscripts?: boolean };
+    prefersVideo?: boolean;
   }) => request<{ user: UserDTO }>("/me/settings", { method: "PATCH", body }),
   setLanguage: (code: string, level: string) =>
     request<{ user: UserDTO }>(`/me/languages/${code}`, { method: "PUT", body: { level } }),

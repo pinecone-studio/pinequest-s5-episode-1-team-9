@@ -90,6 +90,7 @@ export const users = pgTable(
     lastCallDate: date("last_call_date"),
     /** Confirmed 18+ together with the community rules. */
     isAdult: boolean("is_adult").notNull().default(false),
+    prefersVideo: boolean("prefers_video").notNull().default(true),
     transcriptionConsent: boolean("transcription_consent").notNull().default(false),
     retainTranscripts: boolean("retain_transcripts").notNull().default(false),
     rulesAcceptedAt: tz("rules_accepted_at"),

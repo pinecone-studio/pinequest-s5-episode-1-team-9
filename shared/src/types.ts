@@ -31,6 +31,7 @@ export interface UserDTO {
   targetLanguages: LanguageProfile[];
   activeTargetLanguage: string | null;
   privacy: PrivacySettings;
+  prefersVideo: boolean;
   rulesAcceptedAt: string | null;
   onboarded: boolean;
 }
