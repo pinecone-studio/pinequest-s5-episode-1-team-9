@@ -299,6 +299,7 @@ export interface ServerToClientEvents {
   "chat:word-credited": (payload: { word: string; xpGained: number; totalXp: number; xpLevel: number; cappedByDailyLimit: boolean }) => void;
   "chat:error": (payload: { reason: "empty" | "too_long" | "rate_limited" }) => void;
   "balance:partner": (payload: { windowMs: number; totalMs: number }) => void;
+  "presence:online": (payload: { online: number }) => void;
 }
 
 export interface RTCIceServerLike {

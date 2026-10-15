@@ -1,0 +1,146 @@
+"use client";
+
+import { CEFR_LEVELS, TARGET_LANGUAGES, languageName, type CefrLevel } from "@linguamatch/shared";
+import { ChevronDown, Play, Square } from "lucide-react";
+
+const LEVEL_LABEL: Record<CefrLevel, string> = {
+  A1: "A1 Beginner",
+  A2: "A2 Elementary",
+  B1: "B1 Intermediate",
+  B2: "B2 Upper intermediate",
+  C1: "C1 Advanced",
+  C2: "C2 Proficient",
+};
+
+const SHELL =
+  "min-h-16 flex items-center justify-center gap-2.5 rounded-2xl text-[20px] font-extrabold";
+
+export function IdleControls({
+  language,
+  level,
+  canStop,
+  onStart,
+  onStop,
+  onLanguage,
+  onLevel,
+}: {
+  language: string | null;
+  level: CefrLevel | null;
+  canStop: boolean;
+  onStart: () => void;
+  onStop: () => void;
+  onLanguage: (code: string) => void;
+  onLevel: (level: CefrLevel) => void;
+}) {
+  return (
+    <div className="bg-panel grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5 rounded-[22px] p-3.5">
+      <button type="button" onClick={onStart} className={`${SHELL} bg-brand-partner text-ink cursor-pointer border-0`}>
+        <Play className="size-5.5 fill-current" />
+        Start
+      </button>
+
+      <button
+        type="button"
+        onClick={onStop}
+        disabled={!canStop}
+        className={`${SHELL} border border-white/14 bg-transparent text-[#8A8FC0] enabled:cursor-pointer enabled:text-white`}
+      >
+        <Square className="size-5 fill-current" />
+        Stop
+      </button>
+
+      <Picker label="Language" value={language ? languageName(language) : "Choose"} tinted={false}>
+        <select
+          aria-label={`Language: ${language ? languageName(language) : "not set"}`}
+          value={language ?? ""}
+          onChange={(e) => onLanguage(e.target.value)}
+          className="absolute inset-0 size-full cursor-pointer opacity-0"
+        >
+          {!language && <option value="">Choose a language</option>}
+          {TARGET_LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </Picker>
+
+      <Picker label="Proficiency level" value={level ? LEVEL_LABEL[level] : "Choose"} tinted>
+        <select
+          aria-label={`Proficiency level: ${level ? LEVEL_LABEL[level] : "not set"}`}
+          value={level ?? ""}
+          onChange={(e) => onLevel(e.target.value as CefrLevel)}
+          className="absolute inset-0 size-full cursor-pointer opacity-0"
+        >
+          {!level && <option value="">Choose a level</option>}
+          {CEFR_LEVELS.map((l) => (
+            <option key={l} value={l}>
+              {LEVEL_LABEL[l]}
+            </option>
+          ))}
+        </select>
+      </Picker>
+    </div>
+  );
+}
+
+function Picker({
+  label,
+  value,
+  tinted,
+  children,
+}: {
+  label: string;
+  value: string;
+  tinted: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`relative flex min-h-16 items-center justify-between gap-2.5 rounded-2xl border px-4 text-left ${
+        tinted ? "border-brand-you bg-[rgba(59,99,232,0.18)]" : "border-white/22 bg-white/6"
+      }`}
+    >
+      <span className="flex flex-col gap-0.5">
+        <span className="text-dim-dark text-[13px] font-medium">{label}</span>
+        <span className="text-[17px] font-bold text-white">{value}</span>
+      </span>
+      <ChevronDown aria-hidden="true" className="size-4.5 shrink-0 text-white" />
+      {children}
+    </div>
+  );
+}
+
+export function SearchingControls({
+  language,
+  level,
+  mode,
+  waiting,
+  onStop,
+}: {
+  language: string | null;
+  level: CefrLevel | null;
+  mode: string;
+  waiting: number | null;
+  onStop: () => void;
+}) {
+  return (
+    <div className="bg-panel flex flex-wrap items-center justify-between gap-4 rounded-[22px] p-4.5">
+      <div className="flex flex-col gap-1">
+        <span className="font-semibold text-white">
+          {[language ? languageName(language) : null, level, mode].filter(Boolean).join(", ")}
+        </span>
+        <span className="text-dim-dark text-[15px]">
+          {waiting === null ? "Looking for a partner…" : `${waiting} learners waiting right now`}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onStop}
+        className="min-h-13 cursor-pointer rounded-[14px] border border-white/30 bg-transparent px-6.5 text-base font-bold text-white"
+      >
+        Stop searching
+      </button>
+    </div>
+  );
+}

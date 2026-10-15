@@ -70,7 +70,7 @@ export default function FeedbackPage() {
           )}
         </div>
         <Button asChild>
-          <Link href="/match">
+          <Link href="/">
             Find another partner <ArrowRight />
           </Link>
         </Button>

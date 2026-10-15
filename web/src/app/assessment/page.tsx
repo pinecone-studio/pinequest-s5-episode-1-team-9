@@ -154,14 +154,14 @@ function Assessment() {
                 onClick={() =>
                   run("apply", async () => {
                     setUser((await api.applyAssessment(assessment.targetLanguage, result.level)).user);
-                    router.push("/match");
+                    router.push("/");
                   })
                 }
               >
                 Use {result.level} and start practicing
               </Button>
               {currentLevel && currentLevel !== result.level && (
-                <Button variant="outline" onClick={() => router.push("/match")}>
+                <Button variant="outline" onClick={() => router.push("/")}>
                   Keep my current level ({currentLevel})
                 </Button>
               )}

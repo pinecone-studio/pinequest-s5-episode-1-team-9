@@ -85,9 +85,12 @@ export function createSocketServer(httpServer: HttpServer): IO {
   matchmaker.start();
   setQueuedCheck((userId) => matchmaker.isWaiting(userId));
 
+  const broadcastPresence = () => io.emit("presence:online", { online: io.engine.clientsCount });
+
   io.on("connection", (socket: AppSocket) => {
     const userId = socket.data.userId;
     void socket.join(userRoom(userId));
+    broadcastPresence();
     registerEmojiHandlers(io, socket);
 
     socket.on(
@@ -247,6 +250,7 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "disconnect",
       safe(socket, async () => {
         handleSocketDisconnect(socket);
+        broadcastPresence();
         // Only drop the queue entry if this was the socket that queued.
         const remaining = await io.in(userRoom(userId)).fetchSockets();
         if (remaining.length === 0) {

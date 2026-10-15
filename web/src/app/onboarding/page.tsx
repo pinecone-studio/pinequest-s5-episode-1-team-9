@@ -66,7 +66,7 @@ export default function OnboardingPage() {
         transcriptionConsent: transcription,
       });
       setUser(user);
-      router.push(thenAssess ? `/assessment?language=${targetLanguage}` : "/match");
+      router.push(thenAssess ? `/assessment?language=${targetLanguage}` : "/");
     } catch (err) {
       setError((err as Error).message);
     } finally {

@@ -48,7 +48,7 @@ export default function ProfilePage() {
         </div>
         <div className="flex flex-col items-start gap-4 sm:items-end">
           <Button asChild>
-            <Link href="/match">
+            <Link href="/">
               Start a conversation <ArrowRight />
             </Link>
           </Button>
