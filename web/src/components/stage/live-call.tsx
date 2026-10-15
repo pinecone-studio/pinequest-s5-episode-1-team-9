@@ -10,7 +10,7 @@ import {
   type ServerToClientEvents,
   type Topic,
 } from "@linguamatch/shared";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatPanel } from "@/components/room/chat-panel";
 import { CoachPanel } from "@/components/room/coach-panel";
@@ -279,7 +279,31 @@ export function LiveCall({
               mirrored
               muted
               showVideo={media.camOn}
-            />
+            >
+              {media.stream && (
+                <div className="absolute right-3 bottom-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={media.toggleMic}
+                    aria-label={media.micOn ? "Mute microphone" : "Unmute microphone"}
+                    aria-pressed={!media.micOn}
+                    className="grid size-11 place-items-center rounded-full bg-[rgba(20,18,58,0.75)] text-white"
+                  >
+                    {media.micOn ? <Mic className="size-5" /> : <MicOff className="size-5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={media.toggleCam}
+                    disabled={!media.hasVideo}
+                    aria-label={media.camOn ? "Turn camera off" : "Turn camera on"}
+                    aria-pressed={!media.camOn}
+                    className="grid size-11 place-items-center rounded-full bg-[rgba(20,18,58,0.75)] text-white disabled:opacity-50"
+                  >
+                    {media.camOn ? <Video className="size-5" /> : <VideoOff className="size-5" />}
+                  </button>
+                </div>
+              )}
+            </VideoTile>
           </div>
 
           <LiveCaptions speech={speech} consent={consent} />
