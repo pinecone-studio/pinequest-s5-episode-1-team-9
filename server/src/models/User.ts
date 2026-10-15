@@ -108,6 +108,7 @@ export function toUserDTO(user: User): UserDTO {
       transcriptionConsent: user.transcriptionConsent,
       retainTranscripts: user.retainTranscripts,
     },
+    prefersVideo: user.prefersVideo,
     rulesAcceptedAt: user.rulesAcceptedAt?.toISOString() ?? null,
     onboarded: isOnboarded(user),
   };

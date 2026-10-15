@@ -3,13 +3,11 @@
 import { Captions, CaptionsOff } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import type { SpeechStatus } from "@/hooks/useSpeechRecognition";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "linguamatch:captions";
-
-const FADE = ["opacity-35", "opacity-60", "opacity-100"];
+const FADE = ["opacity-45", "opacity-70", "opacity-100"];
 
 function readPreference(): boolean {
   try {
@@ -56,55 +54,48 @@ export function LiveCaptions({
 
   const hint = hintFor(speech.status, consent);
   const lines = speech.finals.slice(-FADE.length);
+  const empty = lines.length === 0 && !speech.interim;
 
   return (
-    <div className="pointer-events-none absolute right-3 bottom-20 z-10 flex max-w-[70%] flex-col items-end gap-2 sm:bottom-16 sm:max-w-xs">
-      {visible && (
-        <div className="bg-card/80 w-full rounded-xl border px-3 py-2 text-sm shadow-lg backdrop-blur">
+    <div className="pointer-events-none absolute right-3 bottom-3 flex max-w-[72%] flex-col items-end gap-2">
+      {visible && (hint || !empty) && (
+        <div className="flex flex-col gap-1 rounded-[14px] bg-[rgba(20,18,58,0.86)] px-3.5 py-3 text-[15px] leading-[1.4]">
           {hint ? (
-            <p className="text-muted-foreground text-xs leading-relaxed">
+            <span className="text-dim-dark">
               {hint.text}
               {hint.href && (
                 <>
                   {" "}
-                  <Link href={hint.href} className="text-primary pointer-events-auto underline">
-                    Open settings
+                  <Link href={hint.href} className="text-brand-partner pointer-events-auto underline">
+                    Settings
                   </Link>
                 </>
               )}
-            </p>
-          ) : lines.length === 0 && !speech.interim ? (
-            <p className="text-muted-foreground text-xs">Say something and your words appear here.</p>
+            </span>
           ) : (
-            <div className="flex flex-col gap-0.5 text-right">
+            <>
               {lines.map((line, i) => (
-                <p
+                <span
                   key={`${lines.length}-${i}-${line}`}
-                  className={cn(
-                    "text-foreground leading-snug transition-opacity duration-700",
-                    FADE[FADE.length - lines.length + i] ?? "opacity-100",
-                  )}
+                  className={cn("text-white transition-opacity duration-700", FADE[FADE.length - lines.length + i])}
                 >
                   {line}
-                </p>
+                </span>
               ))}
-              {speech.interim && <p className="text-muted-foreground leading-snug">{speech.interim}</p>}
-            </div>
+              {speech.interim && <span className="text-dim-dark">{speech.interim}</span>}
+            </>
           )}
         </div>
       )}
-      <Button
+      <button
         type="button"
-        size="icon"
-        variant="secondary"
         onClick={toggle}
         aria-label={visible ? "Hide live captions" : "Show live captions"}
         aria-pressed={visible}
-        title={visible ? "Hide live captions" : "Show live captions"}
-        className="pointer-events-auto size-8 rounded-full"
+        className="pointer-events-auto grid size-11 place-items-center rounded-full bg-[rgba(20,18,58,0.75)] text-white"
       >
-        {visible ? <Captions className="size-4" /> : <CaptionsOff className="size-4" />}
-      </Button>
+        {visible ? <Captions className="size-5" /> : <CaptionsOff className="size-5" />}
+      </button>
     </div>
   );
 }

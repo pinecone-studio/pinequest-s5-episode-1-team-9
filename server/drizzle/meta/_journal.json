@@ -71,6 +71,13 @@
       "when": 1792049068505,
       "tag": "0009_plain_clea",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792057366883,
+      "tag": "0010_confused_captain_stacy",
+      "breakpoints": true
     }
   ]
 }

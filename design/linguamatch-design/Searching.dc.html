@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Searching for a partner</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=Unbounded:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14123A}
+a{color:#9FB4FF}a:hover{color:#C9D5FF}
+.lm-ring{animation:lmRing 2s ease-out infinite}
+.lm-ring2{animation-delay:1s}
+@keyframes lmRing{from{transform:scale(.6);opacity:.7}to{transform:scale(1.6);opacity:0}}
+@media (prefers-reduced-motion: reduce){.lm-ring{animation:none;opacity:.3}}
+button:focus-visible,a:focus-visible{outline:3px solid #F0A532;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #14123A; color: #FFFFFF; font-family: 'Onest', system-ui, sans-serif; display: flex; flex-direction: column;">
+  <header style="padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span aria-hidden="true" style="display: flex; gap: 3px;"><span style="display: block; width: 22px; height: 12px; border-radius: 6px; background: #3B63E8;"></span><span style="display: block; width: 14px; height: 12px; border-radius: 6px; background: #F0A532;"></span></span>
+      <span style="font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 19px;">LinguaMatch</span>
+    </div>
+    <span style="padding: 8px 12px; border-radius: 999px; background: rgba(35,168,107,0.18); color: #7FE0B0; font-weight: 600; font-size: 15px;">132 learners online</span>
+  </header>
+
+  <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 20px; padding: 20px 24px; align-items: stretch;">
+    <div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+        <div role="status" style="position: relative; aspect-ratio: 4 / 3; border-radius: 22px; background: #1F1C4F; border: 3px dashed #F0A532; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; box-sizing: border-box; text-align: center; overflow: hidden;">
+          <div aria-hidden="true" style="position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center;">
+            <span class="lm-ring" style="position: absolute; inset: 0; border-radius: 50%; border: 3px solid #F0A532;"></span>
+            <span class="lm-ring lm-ring2" style="position: absolute; inset: 0; border-radius: 50%; border: 3px solid #3B63E8;"></span>
+            <span style="display: flex; gap: 4px;"><span style="display: block; width: 30px; height: 16px; border-radius: 8px; background: #3B63E8;"></span><span style="display: block; width: 20px; height: 16px; border-radius: 8px; background: #F0A532;"></span></span>
+          </div>
+          <span style="font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 22px;">Finding a B1 partner</span>
+          <span style="color: #B9BDE0; line-height: 1.5;">Now also looking at A2 and B2, so you don't wait long.</span>
+          <span style="font-variant-numeric: tabular-nums; font-weight: 600; font-size: 18px;">0:18</span>
+        </div>
+        <div style="position: relative; aspect-ratio: 4 / 3; border-radius: 22px; background: #232C6E; border: 3px solid #3B63E8; display: flex; align-items: center; justify-content: center;">
+          <span aria-hidden="true" style="width: 96px; height: 96px; border-radius: 50%; background: #3B63E8; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 36px;">B</span>
+          <span style="position: absolute; left: 14px; top: 14px; padding: 6px 12px; border-radius: 999px; background: #3B63E8; font-weight: 700; font-size: 14px;">You, camera on</span>
+        </div>
+      </div>
+      <div style="background: #1F1C4F; border-radius: 22px; padding: 18px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-weight: 600;">English, B1, video</span>
+          <span style="color: #B9BDE0; font-size: 15px;">41 learners at B1 right now</span>
+        </div>
+        <button type="button" style="min-height: 52px; padding: 0 26px; border: 1px solid rgba(255,255,255,0.3); border-radius: 14px; background: transparent; color: #FFFFFF; font: 700 16px 'Onest', sans-serif; cursor: pointer;">Stop searching</button>
+      </div>
+    </div>
+
+    <aside aria-label="Warm-up" style="flex: 1 1 320px; min-width: 0; background: #1F1C4F; border-radius: 22px; padding: 22px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box;">
+      <span style="font-size: 14px; color: #B9BDE0;">Warm up while you wait</span>
+      <p style="margin: 0; font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 20px; line-height: 1.35;">Say it out loud: "I've been learning English for…"</p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-weight: 600;">Good first questions</span>
+        <span style="padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.06); line-height: 1.45;">Where are you calling from?</span>
+        <span style="padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.06); line-height: 1.45;">Why are you learning English?</span>
+        <span style="padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.06); line-height: 1.45;">What did you do last weekend?</span>
+      </div>
+      <p style="margin: 0; font-size: 14px; color: #9A9EC6; line-height: 1.5;">Your partner's video stays blurred until the safety check passes.</p>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

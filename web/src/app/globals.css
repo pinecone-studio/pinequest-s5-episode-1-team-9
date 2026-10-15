@@ -50,8 +50,28 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-unbounded), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+  --color-ink: #1C1A45;
+  --color-stage: #14123A;
+  --color-panel: #1F1C4F;
+  --color-paper: #F6F7FB;
+  --color-brand-you: #3B63E8;
+  --color-brand-you-deep: #2647B8;
+  --color-brand-you-soft: #232C6E;
+  --color-brand-you-tint: #E8EDFD;
+  --color-brand-you-text: #C9D5FF;
+  --color-brand-partner: #F0A532;
+  --color-brand-partner-tint: #FFF4E0;
+  --color-brand-partner-text: #F7C978;
+  --color-fix: #23A86B;
+  --color-fix-ink: #145F3B;
+  --color-fix-glow: #7FE0B0;
+  --color-dim: #4E537A;
+  --color-dim-dark: #B9BDE0;
+  --color-dim-darker: #9A9EC6;
+  --color-hairline: #E1E4F0;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -94,4 +114,53 @@
 }
 .animate-pulse-ring {
   animation: pulse-ring 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+
+*:focus-visible {
+  outline: 3px solid var(--color-brand-partner);
+  outline-offset: 2px;
+}
+
+@keyframes lm-wait {
+  50% { transform: scaleX(1.35); }
+}
+.lm-wait > span:first-child { transform-origin: right center; animation: lm-wait 1.4s ease-in-out infinite; }
+.lm-wait > span:last-child { transform-origin: left center; animation: lm-wait 1.4s ease-in-out .2s infinite; }
+
+@keyframes lm-ring {
+  0% { transform: scale(0.72); opacity: 0.9; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+.lm-ring { animation: lm-ring 1.8s ease-out infinite; }
+.lm-ring-2 { animation-delay: .9s; }
+
+@keyframes lm-in {
+  to { opacity: 1; transform: none; }
+}
+.lm-in { opacity: 0; transform: translateY(8px); animation: lm-in .5s ease-out forwards; }
+.lm-d1 { animation-delay: .3s; }
+.lm-d2 { animation-delay: 1.3s; }
+.lm-d3 { animation-delay: 2.3s; }
+.lm-d4 { animation-delay: 3.1s; }
+.lm-fixword { opacity: 0; animation: lm-in .4s ease-out 2s forwards; }
+
+@keyframes lm-grow {
+  to { width: 58%; }
+}
+.lm-bar-you { width: 0; animation: lm-grow 1.6s ease-out 3.2s forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lm-wait > span, .lm-ring { animation: none; }
+  .lm-in, .lm-fixword { animation: none; opacity: 1; transform: none; }
+  .lm-bar-you { animation: none; width: 58%; }
+}
+
+@keyframes lm-pulse {
+  from { box-shadow: 0 0 0 0 rgba(240,165,50,0.55); }
+  to { box-shadow: 0 0 0 22px rgba(240,165,50,0); }
+}
+.lm-pulse { animation: lm-pulse 1.6s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lm-pulse { animation: none; }
 }

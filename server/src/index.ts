@@ -24,6 +24,7 @@ import {
 import { endStaleSessions } from "./services/rooms/roomService";
 import { SPEECH_MODE, pronunciationCapability } from "./services/speech";
 import { createSocketServer } from "./socket";
+import { getIO } from "./socket/io";
 import { logAuthFailure } from "./utils/auth";
 import { errorHandler } from "./utils/http";
 
@@ -51,6 +52,13 @@ async function main() {
   app.use(express.json({ limit: "100kb" }));
   // Verifies the Clerk session token (Bearer header) and rejects tokens minted for other sites.
   app.use(clerkMiddleware({ authorizedParties: clerkAuthorizedParties }));
+
+  let onlineCache = { at: 0, online: 0 };
+  app.get("/api/online", (_req, res) => {
+    const now = Date.now();
+    if (now - onlineCache.at > 10_000) onlineCache = { at: now, online: getIO().engine.clientsCount };
+    res.json({ online: onlineCache.online });
+  });
 
   app.get("/api/health", (_req, res) => {
     res.json({

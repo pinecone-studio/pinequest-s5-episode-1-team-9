@@ -208,7 +208,16 @@ export async function purgeStaleTranscripts(): Promise<void> {
 export async function toFeedbackDTO(feedback: FeedbackReport): Promise<FeedbackDTO> {
   const [[session], rows] = await Promise.all([
     db
-      .select({ startedAt: sessions.startedAt, endedAt: sessions.endedAt, topics: sessions.topics, createdAt: sessions.createdAt })
+      .select({
+        startedAt: sessions.startedAt,
+        endedAt: sessions.endedAt,
+        topics: sessions.topics,
+        createdAt: sessions.createdAt,
+        userA: sessions.userA,
+        userB: sessions.userB,
+        userALevel: sessions.userALevel,
+        userBLevel: sessions.userBLevel,
+      })
       .from(sessions)
       .where(eq(sessions.id, feedback.sessionId)),
     db
@@ -217,10 +226,18 @@ export async function toFeedbackDTO(feedback: FeedbackReport): Promise<FeedbackD
       .where(and(eq(mistakes.sessionId, feedback.sessionId), eq(mistakes.userId, feedback.userId)))
       .orderBy(asc(mistakes.position)),
   ]);
+  const partnerId = session ? (session.userA === feedback.userId ? session.userB : session.userA) : null;
+  const [partner] = partnerId
+    ? await db.select({ name: users.name, deletedAt: users.deletedAt }).from(users).where(eq(users.id, partnerId))
+    : [];
+
   const details = feedback.summaryJson;
   return {
     id: feedback.id,
     conversationId: feedback.sessionId,
+    partnerName: !partner || partner.deletedAt ? "Your partner" : partner.name,
+    partnerLevel: ((session && (session.userA === feedback.userId ? session.userBLevel : session.userALevel)) ??
+      feedback.level) as FeedbackDTO["partnerLevel"],
     status: feedback.status,
     statusMessage: feedback.statusMessage,
     targetLanguage: feedback.targetLanguage,

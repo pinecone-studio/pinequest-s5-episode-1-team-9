@@ -62,7 +62,7 @@ export function SiteHeader({ showStartAction = true }: { showStartAction?: boole
               </Button>
               {showStartAction && (
                 <Button size="sm" asChild className="ml-1">
-                  <Link href={user.onboarded ? "/match" : "/onboarding"}>Start practicing</Link>
+                  <Link href={user.onboarded ? "/" : "/onboarding"}>Start practicing</Link>
                 </Button>
               )}
             </>

@@ -1,78 +1,76 @@
 "use client";
 
-import { MicOff, Volume2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 export function VideoTile({
   stream,
   label,
-  sublabel,
-  muted = false,
+  side,
+  initial,
   mirrored = false,
+  muted = false,
   showVideo = true,
-  micOff = false,
   placeholder,
-  className,
+  children,
 }: {
   stream: MediaStream | null;
   label: string;
-  sublabel?: string;
-  /** Mute playback (always true for your own tile to avoid echo). */
-  muted?: boolean;
+  side: "you" | "partner";
+  initial: string;
   mirrored?: boolean;
+  muted?: boolean;
   showVideo?: boolean;
-  micOff?: boolean;
   placeholder?: React.ReactNode;
-  className?: string;
+  children?: React.ReactNode;
 }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [needsGesture, setNeedsGesture] = useState(false);
-  const hasVideo = showVideo && Boolean(stream?.getVideoTracks().some((t) => t.readyState === "live"));
+  const video = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.srcObject = stream;
-    if (stream) el.play().catch(() => !muted && setNeedsGesture(true));
-  }, [stream, muted]);
+    const el = video.current;
+    if (el && el.srcObject !== stream) el.srcObject = stream;
+  }, [stream]);
+
+  const you = side === "you";
+  const live = Boolean(stream) && showVideo;
 
   return (
-    <div className={cn("relative overflow-hidden rounded-2xl bg-neutral-900", className)}>
-      {/* Always mounted so the partner's audio plays even without video. */}
-      <video
-        ref={ref}
-        autoPlay
-        playsInline
-        muted={muted}
-        className={cn("size-full object-cover", mirrored && "-scale-x-100", !hasVideo && "invisible")}
-      />
-      {!hasVideo && (
-        <div className="absolute inset-0 grid place-items-center text-neutral-400">
-          {placeholder ?? (
-            <div className="grid size-20 place-items-center rounded-full bg-neutral-800 text-2xl font-semibold text-neutral-200">
-              {label.slice(0, 1).toUpperCase()}
-            </div>
-          )}
-        </div>
+    <div
+      className={cn(
+        "relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-[22px] border-[3px]",
+        you ? "border-brand-you bg-brand-you-soft" : "border-brand-partner bg-[#2A2763]",
       )}
-      {needsGesture && (
-        <button
-          className="absolute inset-0 grid place-items-center bg-black/60 text-sm text-white"
-          onClick={() => {
-            ref.current?.play().then(() => setNeedsGesture(false)).catch(() => {});
-          }}
-        >
-          <span className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2">
-            <Volume2 className="size-4" /> Click to hear your partner
+    >
+      {live ? (
+        <video
+          ref={video}
+          autoPlay
+          playsInline
+          muted={muted}
+          className={cn("size-full object-cover", mirrored && "-scale-x-100")}
+        />
+      ) : (
+        (placeholder ?? (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "font-display grid size-24 place-items-center rounded-full text-[36px] font-bold",
+              you ? "bg-brand-you text-white" : "bg-brand-partner text-ink",
+            )}
+          >
+            {initial}
           </span>
-        </button>
+        ))
       )}
-      <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-lg bg-black/50 px-2.5 py-1 text-xs text-white backdrop-blur">
-        {micOff && <MicOff className="size-3.5 text-red-300" />}
-        <span className="font-medium">{label}</span>
-        {sublabel && <span className="text-white/70">{sublabel}</span>}
-      </div>
+      <span
+        className={cn(
+          "absolute top-3.5 left-3.5 max-w-[calc(100%-28px)] truncate rounded-full px-3 py-1.5 text-sm font-bold",
+          you ? "bg-brand-you text-white" : "bg-brand-partner text-ink",
+        )}
+      >
+        {label}
+      </span>
+      {children}
     </div>
   );
 }

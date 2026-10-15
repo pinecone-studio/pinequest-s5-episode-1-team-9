@@ -31,6 +31,7 @@ export interface UserDTO {
   targetLanguages: LanguageProfile[];
   activeTargetLanguage: string | null;
   privacy: PrivacySettings;
+  prefersVideo: boolean;
   rulesAcceptedAt: string | null;
   onboarded: boolean;
 }
@@ -130,6 +131,8 @@ export interface FriendDTO {
   id: string;
   username: string;
   nativeLanguage: string | null;
+  language: string | null;
+  level: CefrLevel | null;
   online: boolean;
   busy: boolean;
 }
@@ -232,7 +235,7 @@ export interface RoleplayCard {
 
 export interface FriendCallInvite {
   inviteId: string;
-  from: { id: string; username: string };
+  from: { id: string; username: string; level: CefrLevel };
   targetLanguage: string;
   expiresInSeconds: number;
 }
@@ -299,6 +302,7 @@ export interface ServerToClientEvents {
   "chat:word-credited": (payload: { word: string; xpGained: number; totalXp: number; xpLevel: number; cappedByDailyLimit: boolean }) => void;
   "chat:error": (payload: { reason: "empty" | "too_long" | "rate_limited" }) => void;
   "balance:partner": (payload: { windowMs: number; totalMs: number }) => void;
+  "presence:online": (payload: { online: number }) => void;
 }
 
 export interface RTCIceServerLike {
@@ -347,6 +351,8 @@ export type FeedbackStatus = "pending" | "ready" | "insufficient_data" | "no_con
 export interface FeedbackDTO {
   id: string;
   conversationId: string;
+  partnerName: string;
+  partnerLevel: CefrLevel;
   status: FeedbackStatus;
   statusMessage: string | null;
   targetLanguage: string;

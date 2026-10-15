@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export type MediaStatus = "pending" | "ready" | "audio-only" | "denied" | "unavailable";
 
 /** Acquires camera + mic, falling back to audio-only, and exposes mute/camera toggles. */
-export function useLocalMedia() {
+export function useLocalMedia(enabled = true) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [status, setStatus] = useState<MediaStatus>("pending");
   const [micOn, setMicOn] = useState(true);
@@ -13,6 +13,7 @@ export function useLocalMedia() {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     const acquire = async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -47,7 +48,7 @@ export function useLocalMedia() {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, []);
+  }, [enabled]);
 
   const toggleMic = useCallback(() => {
     setMicOn((on) => {

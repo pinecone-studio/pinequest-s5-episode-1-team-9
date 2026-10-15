@@ -1,10 +1,20 @@
 "use client";
 
-import { CEFR_DESCRIPTIONS, CEFR_LEVELS, type CefrLevel } from "@linguamatch/shared";
+import { CEFR_DESCRIPTIONS, CEFR_LEVELS, levelScaleNote, levelShort, type CefrLevel } from "@linguamatch/shared";
 import { cn } from "@/lib/utils";
 
-export function LevelPicker({ value, onChange }: { value: CefrLevel | null; onChange: (level: CefrLevel) => void }) {
+export function LevelPicker({
+  value,
+  onChange,
+  language,
+}: {
+  value: CefrLevel | null;
+  onChange: (level: CefrLevel) => void;
+  language?: string | null;
+}) {
+  const note = levelScaleNote(language);
   return (
+    <>
     <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Proficiency level">
       {CEFR_LEVELS.map((level) => {
         const info = CEFR_DESCRIPTIONS[level];
@@ -23,11 +33,11 @@ export function LevelPicker({ value, onChange }: { value: CefrLevel | null; onCh
           >
             <span
               className={cn(
-                "grid size-9 shrink-0 place-items-center rounded-md text-sm font-semibold",
+                "grid min-h-9 min-w-9 shrink-0 place-items-center rounded-md px-1.5 text-sm font-semibold",
                 selected ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground",
               )}
             >
-              {level}
+              {levelShort(language, level)}
             </span>
             <span>
               <span className="block text-sm font-medium">{info.name}</span>
@@ -37,5 +47,7 @@ export function LevelPicker({ value, onChange }: { value: CefrLevel | null; onCh
         );
       })}
     </div>
+    {note && <p className="text-muted-foreground mt-2 text-xs">{note}</p>}
+    </>
   );
 }
