@@ -5,6 +5,7 @@ import { CircleStop, Drama, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { RoleplayCard } from "@/components/room/roleplay-card";
 import { Button } from "@/components/ui/button";
 import type { Roleplay } from "@/hooks/useRoleplay";
+import type { TalkBalanceState } from "@/hooks/useTalkBalance";
 import type { SpeechStatus } from "@/hooks/useSpeechRecognition";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ export function CoachPanel({
   onNewTopic,
   speech,
   roleplay,
+  talk,
 }: {
   topic: Topic | null;
   loading: boolean;
@@ -22,6 +24,7 @@ export function CoachPanel({
   onNewTopic: () => void;
   speech: { status: SpeechStatus | "off"; muted: boolean };
   roleplay?: Roleplay;
+  talk?: TalkBalanceState;
 }) {
   const inRoleplay = Boolean(roleplay?.card);
   return (
@@ -69,6 +72,32 @@ export function CoachPanel({
         )}
         {roleplay?.error && <p className="mt-3 text-xs text-amber-300">{roleplay.error}</p>}
       </div>
+
+      {talk && (
+        <div>
+          <div className="flex items-center justify-between text-[11px] text-neutral-400">
+            <span>You {talk.balance.minePct}%</span>
+            <span>Partner {talk.balance.partnerPct}%</span>
+          </div>
+          <div
+            className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-white/10"
+            role="img"
+            aria-label={`You spoke ${talk.balance.minePct} percent, your partner ${talk.balance.partnerPct} percent`}
+          >
+            <div className="bg-indigo-400 transition-all duration-700" style={{ width: `${talk.balance.minePct}%` }} />
+            <div className="bg-emerald-400/70 transition-all duration-700" style={{ width: `${talk.balance.partnerPct}%` }} />
+          </div>
+          {talk.tip && (
+            <button
+              type="button"
+              onClick={talk.dismissTip}
+              className="mt-2 w-full rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-left text-xs leading-relaxed text-amber-100"
+            >
+              {talk.tip.text}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2">
         <Button

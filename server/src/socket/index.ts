@@ -12,6 +12,7 @@ import {
   setQueuedCheck,
   startCall,
 } from "../services/friends/friendCalls";
+import { relayBalance } from "../services/balance/balanceService";
 import { assist, creditCaption, refreshSuggestions, sendMessage, syncChat } from "../services/chat/chatService";
 import { endRoleplay, startRoleplay, syncRoleplay } from "../services/roleplay/roleplayService";
 import { findOrCreateUser } from "../models/User";
@@ -148,6 +149,13 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "frame:sample",
       safe(socket, async (payload) => {
         if (isRoomId(payload?.roomId)) await addVideoFrame(socket, payload);
+      }),
+    );
+
+    socket.on(
+      "balance:report",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await relayBalance(payload.roomId, userId, payload);
       }),
     );
 

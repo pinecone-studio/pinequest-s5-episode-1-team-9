@@ -161,6 +161,38 @@ export type FriendCallStatus =
   | "timeout"
   | "cancelled";
 
+export interface QuizQuestionDTO {
+  prompt: string;
+  options: string[];
+}
+
+export interface QuizAnsweredDTO {
+  index: number;
+  choice: number;
+  correct: boolean;
+  correctIndex: number;
+  explanation: string;
+}
+
+export interface QuizDTO {
+  category: Mistake["category"];
+  questions: QuizQuestionDTO[];
+  answered: QuizAnsweredDTO[];
+  completed: boolean;
+  score: number | null;
+  total: number;
+  awardedXp: number | null;
+}
+
+export interface QuizAnswerResultDTO {
+  result: QuizAnsweredDTO;
+  locked: boolean;
+  completed: boolean;
+  score: number | null;
+  total: number;
+  xp: { xpGained: number; totalXp: number; xpLevel: number; cappedByDailyLimit: boolean } | null;
+}
+
 export interface ChatMessageDTO {
   id: string;
   userId: string;
@@ -227,6 +259,7 @@ export interface ClientToServerEvents {
   "chat:assist": (payload: { roomId: string; draft: string }) => void;
   "chat:suggest": (payload: { roomId: string; topic?: string; recent?: string[] }) => void;
   "chat:caption": (payload: { roomId: string; text: string }) => void;
+  "balance:report": (payload: { roomId: string; windowMs: number; totalMs: number }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -265,6 +298,7 @@ export interface ServerToClientEvents {
   "chat:suggestions": (payload: { words: SuggestedWord[] }) => void;
   "chat:word-credited": (payload: { word: string; xpGained: number; totalXp: number; xpLevel: number; cappedByDailyLimit: boolean }) => void;
   "chat:error": (payload: { reason: "empty" | "too_long" | "rate_limited" }) => void;
+  "balance:partner": (payload: { windowMs: number; totalMs: number }) => void;
 }
 
 export interface RTCIceServerLike {

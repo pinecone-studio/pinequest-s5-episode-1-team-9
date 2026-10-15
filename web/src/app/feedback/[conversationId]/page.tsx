@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { MistakeQuiz } from "@/components/feedback/mistake-quiz";
 import { XpAwardBanner } from "@/components/xp/xp-award-banner";
 import { api, ApiError } from "@/lib/api";
 import { useRequireUser } from "@/lib/auth";
@@ -130,6 +131,7 @@ export default function FeedbackPage() {
       )}
 
       {feedback?.status === "ready" && <Report feedback={feedback} />}
+      {feedback?.status === "ready" && <MistakeQuiz conversationId={conversationId} />}
     </PageShell>
   );
 }

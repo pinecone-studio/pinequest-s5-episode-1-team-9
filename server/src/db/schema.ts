@@ -338,6 +338,7 @@ export const feedbackReports = pgTable(
     summary: text("summary"),
     summaryJson: jsonb("summary_json").$type<FeedbackDetails>(),
     metrics: jsonb("metrics").$type<FluencyMetrics>(),
+    quizJson: jsonb("quiz_json"),
     aiModel: text("ai_model"),
     generatedAt: tz("generated_at"),
     createdAt: createdAt(),
@@ -359,6 +360,7 @@ export const feedbackReports = pgTable(
     ),
     check("feedback_reports_summary_json_is_object", sql`${t.summaryJson} is null or jsonb_typeof(${t.summaryJson}) = 'object'`),
     check("feedback_reports_metrics_is_object", sql`${t.metrics} is null or jsonb_typeof(${t.metrics}) = 'object'`),
+    check("feedback_reports_quiz_json_is_object", sql`${t.quizJson} is null or jsonb_typeof(${t.quizJson}) = 'object'`),
     index("feedback_reports_user_created_idx").on(t.userId, t.createdAt),
   ],
 );

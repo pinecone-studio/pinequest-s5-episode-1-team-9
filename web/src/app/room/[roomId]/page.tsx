@@ -28,7 +28,9 @@ import { useLocalMedia } from "@/hooks/useLocalMedia";
 import { useSpeechRecognition, type RecognizedSegment } from "@/hooks/useSpeechRecognition";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { useChat } from "@/hooks/useChat";
+import { useMicActivity } from "@/hooks/useMicActivity";
 import { useRoleplay } from "@/hooks/useRoleplay";
+import { useTalkBalance } from "@/hooks/useTalkBalance";
 import { useRequireUser } from "@/lib/auth";
 import { currentSocket, getSocket, type AppSocket } from "@/lib/socket";
 import { cn, formatClock } from "@/lib/utils";
@@ -153,6 +155,15 @@ export default function RoomPage() {
     enabled: consent && media.micOn && Boolean(info) && !ended,
     onSegment,
   });
+  const micMs = useMicActivity(media.stream, Boolean(info) && !ended && speech.status !== "listening");
+  const talk = useTalkBalance({
+    socket,
+    roomId,
+    ready: Boolean(info) && !ended,
+    startedAt: info?.startedAt ?? null,
+    mineMs: speech.speakingMs > 0 ? speech.speakingMs : micMs,
+    questions: roleplay.card ? [roleplay.card.situation] : (topic?.questions ?? []),
+  });
   const chat = useChat(socket, roomId, Boolean(info) && !ended, {
     topic: roleplay.card?.scenarioTitle ?? topic?.title ?? "",
     recent: speech.finals,
@@ -266,6 +277,7 @@ export default function RoomPage() {
           onNewTopic={() => socket?.emit("topic:request", { roomId })}
           speech={{ status: consent ? speech.status : "off", muted: !media.micOn }}
           roleplay={roleplay}
+          talk={talk}
         />
 
         <ChatPanel chat={chat} myUserId={user.id} />

@@ -61,6 +61,7 @@ export function useSpeechRecognition(opts: {
   const [status, setStatus] = useState<SpeechStatus>(() => (getRecognitionCtor() ? "idle" : "unsupported"));
   const [interim, setInterim] = useState("");
   const [finals, setFinals] = useState<string[]>([]);
+  const [speakingMs, setSpeakingMs] = useState(0);
   const onSegmentRef = useRef(opts.onSegment);
   onSegmentRef.current = opts.onSegment;
 
@@ -127,14 +128,16 @@ export function useSpeechRecognition(opts: {
         const text = alt.transcript.trim();
         if (text) {
           const endedAt = Date.now();
+          const segmentStart = Math.min(phraseStart, endedAt - 300);
           onSegmentRef.current({
             text,
-            startedAt: Math.min(phraseStart, endedAt - 300),
+            startedAt: segmentStart,
             endedAt,
             // Browsers report 0 when they don't compute confidence.
             confidence: alt.confidence > 0 ? alt.confidence : null,
           });
           setFinals((lines) => [...lines, text].slice(-MAX_CAPTION_LINES));
+          setSpeakingMs((ms) => ms + Math.max(0, endedAt - segmentStart));
         }
         phraseStart = null;
       }
@@ -178,5 +181,5 @@ export function useSpeechRecognition(opts: {
     };
   }, [opts.enabled, opts.locale]);
 
-  return { status, supported: status !== "unsupported", interim, finals };
+  return { status, supported: status !== "unsupported", interim, finals, speakingMs };
 }
