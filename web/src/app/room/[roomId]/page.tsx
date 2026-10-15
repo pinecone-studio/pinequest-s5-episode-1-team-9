@@ -12,8 +12,9 @@ export default function RoomPage() {
   const router = useRouter();
 
   const onNext = useCallback(() => router.push("/"), [router]);
+  const onExit = useCallback(() => router.push("/"), [router]);
   const onFeedback = useCallback((id: string) => router.push(`/feedback/${id}`), [router]);
 
   if (!user) return <FullPageSpinner />;
-  return <LiveCall roomId={roomId} onNext={onNext} onFeedback={onFeedback} />;
+  return <LiveCall roomId={roomId} onNext={onNext} onFeedback={onFeedback} onExit={onExit} />;
 }

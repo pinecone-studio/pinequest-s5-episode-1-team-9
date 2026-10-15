@@ -4,6 +4,7 @@ import type { CefrLevel } from "@linguamatch/shared";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { forgetRoom, recallRoom, rememberRoom } from "@/lib/active-room";
 import { getSocket } from "@/lib/socket";
 
 export type StagePhase = "idle" | "searching" | "live";
@@ -20,6 +21,7 @@ export interface CallStage {
   wantsMedia: boolean;
   start: () => void;
   stop: () => void;
+  reset: () => void;
   clearError: () => void;
 }
 
@@ -38,6 +40,14 @@ export function useCallStage(language: string | null, level: CefrLevel | null): 
   const startedAt = useRef(0);
 
   const gate: StageGate = loading ? "ready" : !user ? "signed-out" : user.onboarded ? "ready" : "needs-onboarding";
+
+  useEffect(() => {
+    const saved = recallRoom();
+    if (!saved) return;
+    setRoomId(saved);
+    setWantsMedia(true);
+    setPhase("live");
+  }, []);
 
   useEffect(() => {
     if (!searching) return;
@@ -60,6 +70,7 @@ export function useCallStage(language: string | null, level: CefrLevel | null): 
     const onStatus = (s: { waiting: number }) => setWaiting(s.waiting);
     const onMatched = ({ roomId: id }: { roomId: string }) => {
       if (!active) return;
+      rememberRoom(id);
       setRoomId(id);
       setPhase("live");
     };
@@ -98,6 +109,8 @@ export function useCallStage(language: string | null, level: CefrLevel | null): 
       setError("Pick a language and level first.");
       return;
     }
+    forgetRoom();
+    setRoomId(null);
     setWantsMedia(true);
     setWaiting(null);
     setError(null);
@@ -105,9 +118,19 @@ export function useCallStage(language: string | null, level: CefrLevel | null): 
   }, [gate, language, level, router]);
 
   const stop = useCallback(() => {
+    forgetRoom();
     setPhase("idle");
     setRoomId(null);
     setWaiting(null);
+  }, []);
+
+  const reset = useCallback(() => {
+    forgetRoom();
+    setPhase("idle");
+    setRoomId(null);
+    setWaiting(null);
+    setWantsMedia(false);
+    setError(null);
   }, []);
 
   return {
@@ -120,6 +143,7 @@ export function useCallStage(language: string | null, level: CefrLevel | null): 
     wantsMedia,
     start,
     stop,
+    reset,
     clearError: () => setError(null),
   };
 }

@@ -11,7 +11,6 @@ import {
   type Topic,
 } from "@linguamatch/shared";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatPanel } from "@/components/room/chat-panel";
 import { CoachPanel } from "@/components/room/coach-panel";
@@ -33,6 +32,7 @@ import { useTalkBalance } from "@/hooks/useTalkBalance";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { useAuth } from "@/lib/auth";
 import { useOnlineCount } from "@/lib/online";
+import { forgetRoom } from "@/lib/active-room";
 import { currentSocket, getSocket, type AppSocket } from "@/lib/socket";
 import { formatClock } from "@/lib/utils";
 
@@ -42,10 +42,12 @@ export function LiveCall({
   roomId,
   onNext,
   onFeedback,
+  onExit,
 }: {
   roomId: string;
   onNext: () => void;
   onFeedback: (conversationId: string) => void;
+  onExit: () => void;
 }) {
   const { user } = useAuth();
   const online = useOnlineCount();
@@ -99,7 +101,9 @@ export function LiveCall({
     return () => {
       mounted.current = false;
       setTimeout(() => {
-        if (!mounted.current && !myAction.current) currentSocket()?.emit("room:leave", { roomId, reason: "ended" });
+        if (mounted.current || myAction.current) return;
+        forgetRoom();
+        currentSocket()?.emit("room:leave", { roomId, reason: "ended" });
       }, 0);
     };
   }, [roomId]);
@@ -128,6 +132,7 @@ export function LiveCall({
     };
     const onEnded = (e: { conversationId: string; reason: RoomEndReason; byPartner: boolean }) => {
       if (e.conversationId !== roomId) return;
+      forgetRoom();
       myAction.current ??= "moderation";
       if (!e.byPartner) {
         if (myAction.current === "next") onNext();
@@ -207,11 +212,9 @@ export function LiveCall({
         <div className="flex flex-col items-center gap-6">
           <p className="m-0 text-lg">{roomError}</p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Button asChild>
-              <Link href="/">Find a partner</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/profile">Your profile</Link>
+            <Button onClick={onNext}>Find a partner</Button>
+            <Button variant="outline" onClick={onExit}>
+              Back to start
             </Button>
           </div>
         </div>
@@ -228,7 +231,7 @@ export function LiveCall({
 
   return (
     <section aria-label="In a call" className="bg-stage flex min-h-dvh flex-col text-white">
-      <StageHeader online={online} compact>
+      <StageHeader online={online} compact onHome={onExit}>
         <span className="rounded-full bg-white/8 px-3 py-2">
           {info ? `${languageName(info.targetLanguage)}, ${levelShort(info.targetLanguage, info.yourLevel)}` : "Connecting…"}
         </span>
