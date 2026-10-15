@@ -110,7 +110,7 @@ export function EmojiReactions({
       <div
         role="group"
         aria-label="Reactions"
-        className="flex max-w-[92vw] gap-1 overflow-x-auto rounded-full bg-white/8 px-2.5 py-1.5"
+        className="no-scrollbar flex max-w-full flex-wrap justify-center gap-0.5 overflow-x-auto rounded-2xl bg-white/8 px-2 py-1.5"
       >
         {Object.entries(EMOJI_UNLOCKS).flatMap(([lvl, list]) =>
           list.map((emoji) => {
@@ -124,14 +124,14 @@ export function EmojiReactions({
                 aria-label={locked ? `${emoji}, unlocks at level ${lvl}` : `Send ${emoji}`}
                 title={locked ? `Unlocks at Level ${lvl}` : emoji}
                 className={cn(
-                  "relative grid size-11 shrink-0 place-items-center rounded-full border-0 bg-transparent text-[22px] transition",
+                  "relative grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent text-[28px] leading-none transition",
                   locked ? "cursor-not-allowed text-[#6E72A3] opacity-45" : "hover:bg-white/10",
                   !locked && coolingDown && "opacity-60",
                 )}
               >
                 {emoji}
                 {locked && (
-                  <Lock aria-hidden="true" className="absolute right-0.5 bottom-0.5 size-3 text-[#6E72A3]" />
+                  <Lock aria-hidden="true" className="absolute right-0 bottom-0 size-2.5 text-[#6E72A3]" />
                 )}
               </button>
             );

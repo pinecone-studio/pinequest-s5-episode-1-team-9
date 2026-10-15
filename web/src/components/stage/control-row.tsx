@@ -63,22 +63,41 @@ export function IdleControls({
         </select>
       </Picker>
 
-      <Picker label="Proficiency level" value={level ? levelLabel(language, level) : "Choose"} tinted note={levelScaleNote(language)}>
-        <select
-          aria-label={`Proficiency level: ${level ? levelLabel(language, level) : "not set"}`}
-          value={level ?? ""}
-          onChange={(e) => onLevel(e.target.value as CefrLevel)}
-          className="absolute inset-0 size-full cursor-pointer opacity-0"
-        >
-          {!level && <option value="">Choose a level</option>}
-          {levelOptions(language).map((l) => (
-            <option key={l.value} value={l.value}>
-              {l.label}
-            </option>
-          ))}
-        </select>
-      </Picker>
+      <LevelControl language={language} level={level} onLevel={onLevel} />
     </div>
+  );
+}
+
+export function LevelControl({
+  language,
+  level,
+  onLevel,
+}: {
+  language: string | null;
+  level: CefrLevel | null;
+  onLevel: (level: CefrLevel) => void;
+}) {
+  return (
+    <Picker
+      label="Proficiency level"
+      value={level ? levelLabel(language, level) : "Choose"}
+      tinted
+      note={levelScaleNote(language)}
+    >
+      <select
+        aria-label={`Proficiency level: ${level ? levelLabel(language, level) : "not set"}`}
+        value={level ?? ""}
+        onChange={(e) => onLevel(e.target.value as CefrLevel)}
+        className="absolute inset-0 size-full cursor-pointer opacity-0"
+      >
+        {!level && <option value="">Choose a level</option>}
+        {levelOptions(language).map((l) => (
+          <option key={l.value} value={l.value}>
+            {l.label}
+          </option>
+        ))}
+      </select>
+    </Picker>
   );
 }
 

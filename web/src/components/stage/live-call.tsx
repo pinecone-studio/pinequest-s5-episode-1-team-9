@@ -30,6 +30,7 @@ import { useRoleplay } from "@/hooks/useRoleplay";
 import { useSpeechRecognition, type RecognizedSegment } from "@/hooks/useSpeechRecognition";
 import { useTalkBalance } from "@/hooks/useTalkBalance";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useOnlineCount } from "@/lib/online";
 import { forgetRoom } from "@/lib/active-room";
@@ -49,7 +50,7 @@ export function LiveCall({
   onFeedback: (conversationId: string) => void;
   onExit: () => void;
 }) {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const online = useOnlineCount();
   const media = useLocalMedia();
   const [socket, setSocket] = useState<AppSocket | null>(null);
@@ -71,7 +72,7 @@ export function LiveCall({
   const [now, setNow] = useState(Date.now());
   const roleplay = useRoleplay(socket, roomId, Boolean(info) && !ended);
 
-  const myAction = useRef<null | "ended" | "next" | "moderation">(null);
+  const myAction = useRef<null | "ended" | "next" | "stop" | "moderation">(null);
   const joined = useRef(false);
   const mounted = useRef(false);
   const floatLayer = useRef<HTMLDivElement>(null);
@@ -136,6 +137,7 @@ export function LiveCall({
       myAction.current ??= "moderation";
       if (!e.byPartner) {
         if (myAction.current === "next") onNext();
+        else if (myAction.current === "stop") onExit();
         else onFeedback(roomId);
       } else {
         setEnded({ reason: e.reason });
@@ -155,12 +157,26 @@ export function LiveCall({
       socket.off("room:ended", onEnded);
       socket.off("room:error", onError);
     };
-  }, [socket, roomId, startRtc, onNext, onFeedback]);
+  }, [socket, roomId, startRtc, onNext, onFeedback, onExit]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  const profileLevel =
+    user?.targetLanguages.find((t) => t.language === user.activeTargetLanguage)?.level ?? null;
+  const changeLevel = useCallback(
+    (next: CefrLevel) => {
+      const lang = user?.activeTargetLanguage;
+      if (!lang) return;
+      void api
+        .setLanguage(lang, next)
+        .then(refresh)
+        .catch(() => {});
+    },
+    [user?.activeTargetLanguage, refresh],
+  );
 
   const consent = Boolean(user?.privacy.transcriptionConsent);
   const speechLocale = getTargetLanguage(info?.targetLanguage ?? "")?.speechLocale ?? "en-US";
@@ -197,9 +213,9 @@ export function LiveCall({
     onFrame,
   });
 
-  const leave = (reason: "ended" | "next") => {
+  const leave = (reason: "ended" | "next" | "stop") => {
     myAction.current = reason;
-    socket?.emit("room:leave", { roomId, reason });
+    socket?.emit("room:leave", { roomId, reason: reason === "stop" ? "ended" : reason });
   };
   const afterModeration = () => {
     myAction.current = "moderation";
@@ -263,22 +279,21 @@ export function LiveCall({
               mirrored
               muted
               showVideo={media.camOn}
-            >
-              <LiveCaptions speech={speech} consent={consent} />
-            </VideoTile>
+            />
           </div>
+
+          <LiveCaptions speech={speech} consent={consent} />
 
           {socket && user && (
             <EmojiReactions socket={socket} roomId={roomId} myUserId={user.id} layer={floatLayer} />
           )}
 
           <LiveControls
-            micOn={media.micOn}
-            camOn={media.camOn}
-            hasVideo={media.hasVideo}
-            onToggleMic={media.toggleMic}
-            onToggleCam={media.toggleCam}
+            language={user?.activeTargetLanguage ?? null}
+            level={profileLevel}
+            onLevel={changeLevel}
             onNext={() => leave("next")}
+            onStop={() => leave("stop")}
             onReport={() => setDialog("report")}
           />
 
@@ -301,7 +316,7 @@ export function LiveCall({
           Block this person
         </Button>
         <Button variant="ghost" size="sm" className="text-dim-dark" onClick={() => leave("ended")}>
-          End call
+          End and see my report
         </Button>
       </div>
 

@@ -164,3 +164,11 @@
 @media (prefers-reduced-motion: reduce) {
   .lm-pulse { animation: none; }
 }
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
