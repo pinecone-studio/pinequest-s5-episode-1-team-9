@@ -63,13 +63,21 @@ export function CallStage() {
     [user, language, refresh],
   );
 
-  const toFeedback = useCallback((id: string) => router.push(`/feedback/${id}`), [router]);
+  const toFeedback = useCallback(
+    (id: string) => {
+      stage.reset();
+      router.push(`/feedback/${id}`);
+    },
+    [router, stage],
+  );
 
   const mediaNote = stage.wantsMedia ? MEDIA_MESSAGE[media.status] : undefined;
   const searching = stage.phase === "searching";
 
   if (stage.phase === "live" && stage.roomId) {
-    return <LiveCall roomId={stage.roomId} onNext={stage.start} onFeedback={toFeedback} />;
+    return (
+      <LiveCall roomId={stage.roomId} onNext={stage.start} onFeedback={toFeedback} onExit={stage.reset} />
+    );
   }
 
   return (

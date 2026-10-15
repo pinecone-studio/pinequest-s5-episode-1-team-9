@@ -42,7 +42,15 @@ export function ShortCallState({ message }: { message: string | null }) {
   );
 }
 
-export function FailedState({ message, onRetry }: { message: string | null; onRetry: () => void }) {
+export function FailedState({
+  message,
+  onRetry,
+  busy = false,
+}: {
+  message: string | null;
+  onRetry: () => void;
+  busy?: boolean;
+}) {
   return (
     <section
       aria-labelledby="report-failed"
@@ -58,10 +66,11 @@ export function FailedState({ message, onRetry }: { message: string | null; onRe
       <button
         type="button"
         onClick={onRetry}
-        className="text-ink inline-flex min-h-12 w-fit items-center gap-2 rounded-[14px] border-0 bg-white px-5 font-bold"
+        disabled={busy}
+        className="text-ink inline-flex min-h-12 w-fit items-center gap-2 rounded-[14px] border-0 bg-white px-5 font-bold disabled:opacity-60"
       >
-        <RefreshCw aria-hidden="true" className="size-4.5" />
-        Try again
+        <RefreshCw aria-hidden="true" className={busy ? "size-4.5 animate-spin" : "size-4.5"} />
+        {busy ? "Trying again…" : "Try again"}
       </button>
     </section>
   );

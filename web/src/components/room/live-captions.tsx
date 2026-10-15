@@ -4,10 +4,8 @@ import { Captions, CaptionsOff } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { SpeechStatus } from "@/hooks/useSpeechRecognition";
-import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "linguamatch:captions";
-const FADE = ["opacity-45", "opacity-70", "opacity-100"];
 
 function readPreference(): boolean {
   try {
@@ -53,49 +51,51 @@ export function LiveCaptions({
   };
 
   const hint = hintFor(speech.status, consent);
-  const lines = speech.finals.slice(-FADE.length);
-  const empty = lines.length === 0 && !speech.interim;
+  const lastFinal = speech.finals[speech.finals.length - 1] ?? "";
 
   return (
-    <div className="pointer-events-none absolute right-3 bottom-3 flex max-w-[72%] flex-col items-end gap-2">
-      {visible && (hint || !empty) && (
-        <div className="flex flex-col gap-1 rounded-[14px] bg-[rgba(20,18,58,0.86)] px-3.5 py-3 text-[15px] leading-[1.4]">
-          {hint ? (
-            <span className="text-dim-dark">
+    <div className="flex justify-end">
+      <div className="bg-stage border-brand-you/40 flex w-full items-start gap-2 rounded-[14px] border px-3 py-2 sm:w-[calc(50%-7px)]">
+        <div aria-live="polite" className="flex min-h-10 min-w-0 flex-1 flex-col justify-center gap-0.5">
+          {!visible ? (
+            <span className="text-dim-darker text-xs">Captions hidden</span>
+          ) : hint ? (
+            <span className="text-dim-dark text-xs leading-[1.4]">
               {hint.text}
               {hint.href && (
                 <>
                   {" "}
-                  <Link href={hint.href} className="text-brand-partner pointer-events-auto underline">
+                  <Link href={hint.href} className="text-brand-partner underline">
                     Settings
                   </Link>
                 </>
               )}
             </span>
+          ) : !lastFinal && !speech.interim ? (
+            <span className="text-dim-darker text-xs">Your words appear here as you speak.</span>
           ) : (
             <>
-              {lines.map((line, i) => (
-                <span
-                  key={`${lines.length}-${i}-${line}`}
-                  className={cn("text-white transition-opacity duration-700", FADE[FADE.length - lines.length + i])}
-                >
-                  {line}
+              {lastFinal && (
+                <span className="truncate text-xs leading-[1.4] text-white/70 transition-opacity duration-700">
+                  {lastFinal}
                 </span>
-              ))}
-              {speech.interim && <span className="text-dim-dark">{speech.interim}</span>}
+              )}
+              {speech.interim && (
+                <span className="truncate text-[13px] leading-[1.4] text-white">{speech.interim}</span>
+              )}
             </>
           )}
         </div>
-      )}
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={visible ? "Hide live captions" : "Show live captions"}
-        aria-pressed={visible}
-        className="pointer-events-auto grid size-11 place-items-center rounded-full bg-[rgba(20,18,58,0.75)] text-white"
-      >
-        {visible ? <Captions className="size-5" /> : <CaptionsOff className="size-5" />}
-      </button>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={visible ? "Hide live captions" : "Show live captions"}
+          aria-pressed={visible}
+          className="grid size-10 shrink-0 place-items-center rounded-full bg-white/8 text-white"
+        >
+          {visible ? <Captions className="size-4.5" /> : <CaptionsOff className="size-4.5" />}
+        </button>
+      </div>
     </div>
   );
 }
