@@ -11,7 +11,7 @@ import { FullPageSpinner } from "@/components/site/header";
 import { XpAwardBanner } from "@/components/xp/xp-award-banner";
 import { api, ApiError } from "@/lib/api";
 import { useRequireUser } from "@/lib/auth";
-import { formatDuration } from "@/lib/utils";
+import { formatDurationWords } from "@/lib/utils";
 
 export default function FeedbackPage() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -19,6 +19,7 @@ export default function FeedbackPage() {
   const [feedback, setFeedback] = useState<FeedbackDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notReady, setNotReady] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -41,21 +42,26 @@ export default function FeedbackPage() {
   }, [notReady, feedback?.status, load]);
 
   const retry = useCallback(async () => {
+    if (retrying) return;
+    setRetrying(true);
+    setError(null);
     try {
       await api.retryFeedback(conversationId);
+      setFeedback((f) => (f ? { ...f, status: "pending", statusMessage: null } : f));
       await load();
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setRetrying(false);
     }
-  }, [conversationId, load]);
+  }, [conversationId, load, retrying]);
 
   if (!user) return <FullPageSpinner />;
 
   const ready = feedback?.status === "ready";
   const subtitle = feedback
     ? [
-        formatDuration(feedback.conversation.durationSeconds),
-        `in ${languageName(feedback.targetLanguage)}, ${levelShort(feedback.targetLanguage, feedback.level)}`,
+        `${formatDurationWords(feedback.conversation.durationSeconds)} in ${languageName(feedback.targetLanguage)}, ${levelShort(feedback.targetLanguage, feedback.level)}.`,
         feedback.conversation.topics.length > 0 ? `Topics: ${feedback.conversation.topics.join(", ")}.` : null,
       ]
         .filter(Boolean)
@@ -93,7 +99,9 @@ export default function FeedbackPage() {
 
         {(notReady || feedback?.status === "pending") && <PendingState />}
         {feedback?.status === "insufficient_data" && <ShortCallState message={feedback.statusMessage} />}
-        {feedback?.status === "failed" && <FailedState message={feedback.statusMessage} onRetry={retry} />}
+        {feedback?.status === "failed" && (
+          <FailedState message={feedback.statusMessage} onRetry={retry} busy={retrying} />
+        )}
         {feedback?.status === "no_consent" && <NoConsentState />}
 
         {ready && feedback && (
