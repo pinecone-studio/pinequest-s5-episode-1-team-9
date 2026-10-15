@@ -16,7 +16,7 @@ import type { MatchPair } from "../matchmaking/algorithm";
 import { clearModerationBuffer, recordForModeration, recordFrameForModeration } from "../moderation/aiModerationQueue";
 import { iceServers } from "../rtc/iceServers";
 import { sanitizeSegment } from "../speech";
-import { pickRandomTopic } from "../topics/topicBank";
+import { pickTopic } from "../topics/aiTopics";
 import { awardXpForSession } from "../xp/xpService";
 
 const RECONNECT_GRACE_MS = 20_000;
@@ -262,7 +262,7 @@ async function generateTopic(sessionId: string) {
       .limit(10);
     const used = [...session.topics, ...recent.flatMap((s) => s.topics)].map((t) => t.title).filter(Boolean);
 
-    const topic = pickRandomTopic(level, used, latestTopic(session)?.title);
+    const topic = await pickTopic({ targetLanguage: session.lang, level, avoid: used, current: latestTopic(session)?.title, startedAt: session.startedAt });
     const stored = { ...topic, shownAt: new Date().toISOString() };
     const updated = await db
       .update(sessions)
