@@ -171,8 +171,8 @@ export function createSocketServer(httpServer: HttpServer): IO {
 
     socket.on(
       "chat:sync",
-      safe(socket, (payload) => {
-        if (isRoomId(payload?.roomId)) syncChat(payload.roomId, userId);
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await syncChat(payload.roomId, userId);
       }),
     );
 
