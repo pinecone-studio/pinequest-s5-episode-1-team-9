@@ -124,7 +124,7 @@ export function EmojiReactions({
                 aria-label={locked ? `${emoji}, unlocks at level ${lvl}` : `Send ${emoji}`}
                 title={locked ? `Unlocks at Level ${lvl}` : emoji}
                 className={cn(
-                  "relative grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent text-[28px] leading-none transition",
+                  "relative grid size-11 shrink-0 place-items-center rounded-full border-0 bg-transparent text-[28px] leading-none transition",
                   locked ? "cursor-not-allowed text-[#6E72A3] opacity-45" : "hover:bg-white/10",
                   !locked && coolingDown && "opacity-60",
                 )}
