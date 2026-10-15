@@ -1,28 +1,17 @@
 "use client";
 
-import { languageName, type Exercise, type FeedbackDTO } from "@linguamatch/shared";
-import { ArrowRight, CheckCircle2, Info, Loader2, RefreshCw, Sparkles, TriangleAlert } from "lucide-react";
+import { languageName, type FeedbackDTO } from "@linguamatch/shared";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { FullPageSpinner, PageShell } from "@/components/site/header";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { MistakeQuiz } from "@/components/feedback/mistake-quiz";
+import { FailedState, NoConsentState, PendingState, ShortCallState } from "@/components/feedback/report-states";
+import { LogoMark, LogoWord } from "@/components/brand/logo-mark";
+import { FullPageSpinner } from "@/components/site/header";
 import { XpAwardBanner } from "@/components/xp/xp-award-banner";
 import { api, ApiError } from "@/lib/api";
 import { useRequireUser } from "@/lib/auth";
-import { cn, formatDuration } from "@/lib/utils";
-
-const CATEGORY_LABEL: Record<string, string> = {
-  grammar: "Grammar",
-  vocabulary: "Vocabulary",
-  word_choice: "Word choice",
-  sentence_structure: "Sentence structure",
-};
+import { formatDuration } from "@/lib/utils";
 
 export default function FeedbackPage() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -36,7 +25,6 @@ export default function FeedbackPage() {
       setFeedback((await api.feedback(conversationId)).feedback);
       setNotReady(false);
     } catch (err) {
-      // The report document appears a moment after the call ends.
       if (err instanceof ApiError && err.status === 404) setNotReady(true);
       else setError((err as Error).message);
     }
@@ -52,285 +40,153 @@ export default function FeedbackPage() {
     return () => clearInterval(t);
   }, [notReady, feedback?.status, load]);
 
+  const retry = useCallback(async () => {
+    try {
+      await api.retryFeedback(conversationId);
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }, [conversationId, load]);
+
   if (!user) return <FullPageSpinner />;
 
+  const ready = feedback?.status === "ready";
+  const subtitle = feedback
+    ? [
+        formatDuration(feedback.conversation.durationSeconds),
+        `in ${languageName(feedback.targetLanguage)}, ${feedback.level}`,
+        feedback.conversation.topics.length > 0 ? `Topics: ${feedback.conversation.topics.join(", ")}.` : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : null;
+
   return (
-    <PageShell className="max-w-4xl">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-primary flex items-center gap-2 text-sm font-medium">
-            <Sparkles className="size-4" /> AI conversation report
-          </div>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Your Conversation Report</h1>
-          {feedback && (
-            <p className="text-muted-foreground mt-1 text-sm">
-              {languageName(feedback.targetLanguage)} · {formatDuration(feedback.conversation.durationSeconds)}
-              {feedback.conversation.topics.length > 0 && ` · ${feedback.conversation.topics.join(", ")}`}
-            </p>
-          )}
+    <div className="bg-paper text-ink min-h-dvh">
+      <header className="border-hairline mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-3 border-b px-6 py-3.5">
+        <Link href="/" className="text-ink flex items-center gap-3 no-underline">
+          <LogoMark />
+          <LogoWord className="text-xl" />
+        </Link>
+        <Link
+          href="/"
+          className="bg-brand-you inline-flex min-h-12 items-center rounded-[14px] px-5 font-bold text-white no-underline"
+        >
+          Find another partner
+        </Link>
+      </header>
+
+      <main className="mx-auto flex max-w-[1240px] flex-col gap-7 px-6 pt-4 pb-18">
+        <div className="flex flex-col gap-2">
+          <h1 className="font-display m-0 text-[clamp(30px,4vw,44px)] font-bold tracking-[-0.02em]">
+            {feedback ? `Your call with ${feedback.partnerName}` : "Your call"}
+          </h1>
+          {subtitle && <p className="text-dim m-0 text-[17px]">{subtitle}</p>}
         </div>
-        <Button asChild>
-          <Link href="/">
-            Find another partner <ArrowRight />
-          </Link>
-        </Button>
-      </div>
 
-      <XpAwardBanner sessionId={conversationId} />
+        <XpAwardBanner sessionId={conversationId} />
 
-      {error && (
-        <Alert variant="destructive" className="mt-8">
-          <AlertDescription className="text-destructive">{error}</AlertDescription>
-        </Alert>
-      )}
+        {error && <p className="m-0 text-[#8C1A21]">{error}</p>}
 
-      {(notReady || feedback?.status === "pending") && (
-        <Card className="mt-8">
-          <CardContent className="flex items-center gap-4 py-6">
-            <Loader2 className="text-primary size-6 animate-spin" />
-            <div>
-              <div className="font-medium">Analyzing your conversation…</div>
-              <div className="text-muted-foreground text-sm">This usually takes under a minute. You can leave and find it later on your profile.</div>
+        {(notReady || feedback?.status === "pending") && <PendingState />}
+        {feedback?.status === "insufficient_data" && <ShortCallState message={feedback.statusMessage} />}
+        {feedback?.status === "failed" && <FailedState message={feedback.statusMessage} onRetry={retry} />}
+        {feedback?.status === "no_consent" && <NoConsentState />}
+
+        {ready && feedback && (
+          <>
+            <div className="flex flex-wrap items-start gap-6">
+              <ScoreCard feedback={feedback} />
+              <MistakeCard feedback={feedback} />
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {feedback && ["insufficient_data", "no_consent", "failed"].includes(feedback.status) && (
-        <Alert variant="warning" className="mt-8">
-          <TriangleAlert />
-          <AlertTitle>
-            {feedback.status === "failed" ? "We couldn't generate your report" : "No report for this conversation"}
-          </AlertTitle>
-          <AlertDescription>
-            <p>{feedback.statusMessage}</p>
-            {feedback.status === "failed" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2"
-                onClick={async () => {
-                  try {
-                    await api.retryFeedback(conversationId);
-                    await load();
-                  } catch (err) {
-                    setError((err as Error).message);
-                  }
-                }}
-              >
-                <RefreshCw /> Try again
-              </Button>
-            )}
-            {feedback.status === "no_consent" && (
-              <Link href="/settings" className="text-primary mt-1 hover:underline">
-                Open settings
-              </Link>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {feedback?.status === "ready" && <Report feedback={feedback} />}
-      {feedback?.status === "ready" && <MistakeQuiz conversationId={conversationId} />}
-    </PageShell>
+            <MistakeQuiz conversationId={conversationId} />
+          </>
+        )}
+      </main>
+    </div>
   );
 }
 
-function Report({ feedback: f }: { feedback: FeedbackDTO }) {
+function ScoreCard({ feedback: f }: { feedback: FeedbackDTO }) {
+  const spoken = f.metrics?.speakingSeconds ?? 0;
+  const total = f.conversation.durationSeconds || 1;
+  const mine = Math.min(100, Math.round((spoken / total) * 100));
+
   return (
-    <div className="mt-8 grid gap-6">
-      <Card>
-        <CardContent className="grid gap-6 md:grid-cols-[220px_1fr]">
-          <div className="flex flex-col justify-center gap-4 md:border-r md:pr-6">
-            <div>
-              <div className="text-muted-foreground text-xs">Overall level</div>
-              <div className="text-2xl font-semibold">{f.level}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground text-xs">Estimated performance</div>
-              <div className="text-primary text-2xl font-semibold">{f.estimatedPerformance ?? "—"}</div>
-            </div>
+    <section
+      aria-labelledby="scores"
+      className="border-hairline flex min-w-0 flex-1 basis-85 flex-col gap-4.5 rounded-3xl border bg-white p-7"
+    >
+      <h2 id="scores" className="m-0 text-[22px] font-semibold">
+        How you did
+      </h2>
+      {[
+        { label: "Grammar", value: f.grammarScore },
+        { label: "Vocabulary", value: f.vocabularyScore },
+        { label: "Fluency", value: f.fluencyScore },
+      ].map((row) => (
+        <div key={row.label} className="flex flex-col gap-1.5">
+          <div className="flex justify-between">
+            <span className="font-semibold">{row.label}</span>
+            <span className="tabular-nums">{row.value ?? "—"}</span>
           </div>
-          <div className="grid gap-4">
-            <Score label="Fluency" value={f.fluencyScore} />
-            <Score label="Grammar" value={f.grammarScore} />
-            <Score label="Vocabulary" value={f.vocabularyScore} />
-            <Score label="Pronunciation" value={f.pronunciationScore} note={f.pronunciationNote} />
+          <div aria-hidden="true" className="h-2.5 rounded-[5px] bg-[#EEF0F7]">
+            <span
+              className="bg-brand-you block h-full rounded-[5px]"
+              style={{ width: `${row.value ?? 0}%` }}
+            />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      ))}
 
-      {f.summary && <p className="text-lg leading-relaxed">{f.summary}</p>}
+      <div className="flex flex-col gap-1.5 pt-1">
+        <span className="font-semibold">Talk time</span>
+        <div aria-hidden="true" className="bg-brand-partner h-2.5 overflow-hidden rounded-[5px]">
+          <span className="bg-brand-you block h-full border-r-[3px] border-white" style={{ width: `${mine}%` }} />
+        </div>
+        <span className="text-dim text-sm">You spoke {mine}% of the call.</span>
+      </div>
 
-      {f.mistakes.length > 0 && (
-        <Section title="Common mistakes" description="Taken from what you actually said. Most important first.">
-          <ol className="grid gap-3">
-            {f.mistakes.map((m, i) => (
-              <li key={i} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-muted-foreground text-xs font-medium">{i + 1}.</span>
-                  <Badge variant="secondary">{CATEGORY_LABEL[m.category] ?? m.category}</Badge>
-                </div>
-                <div className="mt-2 grid gap-1 text-sm sm:grid-cols-[90px_1fr]">
-                  <span className="text-muted-foreground">You said</span>
-                  <span className="decoration-destructive/50 line-through">“{m.original}”</span>
-                  <span className="text-muted-foreground">Better</span>
-                  <span className="text-success font-medium">“{m.corrected}”</span>
-                </div>
-                <p className="text-muted-foreground mt-2 text-sm">{m.explanation}</p>
-              </li>
-            ))}
-          </ol>
-        </Section>
-      )}
+      <p className="m-0 text-sm text-[#5B6085]">Pronunciation isn&apos;t scored yet.</p>
+    </section>
+  );
+}
 
-      {f.vocabularySuggestions.length > 0 && (
-        <Section title="Vocabulary improvement">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {f.vocabularySuggestions.map((v, i) => (
-              <div key={i} className="rounded-lg border p-4 text-sm">
-                <div className="text-muted-foreground">
-                  Instead of <span className="text-foreground font-medium">“{v.original}”</span>, try
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {v.alternatives.map((a) => (
-                    <Badge key={a} variant="accent">
-                      {a}
-                    </Badge>
-                  ))}
-                </div>
-                {v.note && <p className="text-muted-foreground mt-2 text-xs">{v.note}</p>}
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      <Section title="Fluency">
-        {f.metrics && (
-          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label={`${f.metrics.unit} spoken`} value={f.metrics.wordCount} />
-            <Stat label={`${f.metrics.unit}/min`} value={f.metrics.ratePerMinute ? Math.round(f.metrics.ratePerMinute) : "—"} />
-            <Stat label="Filler words" value={f.metrics.totalFillers} />
-            <Stat label="Avg. phrase length" value={f.metrics.averageUtteranceLength.toFixed(1)} />
-          </div>
-        )}
-        {f.metrics && f.metrics.totalFillers > 0 && (
-          <p className="mb-3 text-sm">
-            You used{" "}
-            {Object.entries(f.metrics.fillerCounts)
-              .map(([w, c]) => `“${w}” ${c} time${c === 1 ? "" : "s"}`)
-              .join(", ")}
-            .
-          </p>
-        )}
-        <ul className="grid gap-2 text-sm">
-          {f.fluencyNotes.map((n, i) => (
-            <li key={i} className="flex gap-2">
-              <Info className="text-primary mt-0.5 size-4 shrink-0" /> {n}
-            </li>
-          ))}
-        </ul>
-        <p className="text-muted-foreground mt-3 text-xs">
-          Speaking rate and timing are estimated from speech-recognition timestamps. Recognizers often drop fillers like
-          “um”, so the real count may be higher.
+function MistakeCard({ feedback: f }: { feedback: FeedbackDTO }) {
+  if (f.mistakes.length === 0) {
+    return (
+      <section className="border-hairline flex min-w-0 shrink basis-105 flex-col gap-3 rounded-3xl border bg-white p-7 grow-[1.4]">
+        <h2 className="m-0 text-[22px] font-semibold">Your sentences, fixed</h2>
+        <p className="text-dim m-0 leading-[1.55]">
+          Nothing needed fixing in this call. {f.summary ?? ""}
         </p>
-      </Section>
+      </section>
+    );
+  }
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Section title="What you did well">
-          <ul className="grid gap-2 text-sm">
-            {f.strengths.map((s, i) => (
-              <li key={i} className="flex gap-2">
-                <CheckCircle2 className="text-success mt-0.5 size-4 shrink-0" /> {s}
-              </li>
-            ))}
-          </ul>
-        </Section>
-        <Section title="Focus areas">
-          <ul className="grid gap-2 text-sm">
-            {f.weaknesses.map((s, i) => (
-              <li key={i} className="flex gap-2">
-                <ArrowRight className="text-primary mt-0.5 size-4 shrink-0" /> {s}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      </div>
-
-      {f.exercises.length > 0 && (
-        <Section title="Practice next" description="Exercises built from your mistakes in this conversation.">
-          <div className="grid gap-4">
-            {f.exercises.map((e, i) => (
-              <ExerciseCard key={i} index={i} exercise={e} />
-            ))}
-          </div>
-        </Section>
-      )}
-    </div>
-  );
-}
-
-function Score({ label, value, note }: { label: string; value: number | null; note?: string | null }) {
   return (
-    <div>
-      <div className="mb-1.5 flex items-baseline justify-between text-sm">
-        <span className="font-medium">{label}</span>
-        <span className={cn("tabular-nums", value === null && "text-muted-foreground text-xs")}>
-          {value === null ? "Not assessed" : `${value}/100`}
-        </span>
-      </div>
-      {value === null ? (
-        note && <p className="text-muted-foreground text-xs leading-relaxed">{note}</p>
-      ) : (
-        <Progress value={value} indicatorClassName={value >= 75 ? "bg-success" : value >= 55 ? "bg-primary" : "bg-warning"} />
-      )}
-    </div>
-  );
-}
-
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="bg-muted/60 rounded-lg p-3">
-      <div className="text-xl font-semibold tabular-nums">{value}</div>
-      <div className="text-muted-foreground text-xs capitalize">{label}</div>
-    </div>
-  );
-}
-
-function ExerciseCard({ exercise: e, index }: { exercise: Exercise; index: number }) {
-  const [showAnswers, setShowAnswers] = useState(false);
-  return (
-    <div className="rounded-lg border p-4">
-      <div className="font-medium">
-        {index + 1}. {e.title}
-      </div>
-      <p className="text-muted-foreground mt-1 text-sm">{e.instructions}</p>
-      <ol className="mt-3 grid list-decimal gap-1.5 pl-5 text-sm">
-        {e.items.map((item, i) => (
-          <li key={i}>
-            {item}
-            {showAnswers && e.answerKey[i] && <div className="text-success mt-0.5 text-xs">→ {e.answerKey[i]}</div>}
-          </li>
-        ))}
-      </ol>
-      {e.answerKey.length > 0 && (
-        <Button variant="link" size="sm" className="mt-2 px-0" onClick={() => setShowAnswers((s) => !s)}>
-          {showAnswers ? "Hide answers" : "Show answers"}
-        </Button>
-      )}
-    </div>
+    <section
+      aria-labelledby="mistakes"
+      className="border-hairline flex min-w-0 shrink basis-105 flex-col gap-4 rounded-3xl border bg-white p-7 grow-[1.4]"
+    >
+      <h2 id="mistakes" className="m-0 text-[22px] font-semibold">
+        Your sentences, fixed
+      </h2>
+      {f.mistakes.map((m, i) => (
+        <div
+          key={i}
+          className={
+            i < f.mistakes.length - 1
+              ? "flex flex-col gap-1 border-b border-[#EEF0F7] pb-3.5"
+              : "flex flex-col gap-1"
+          }
+        >
+          <span className="text-[#5B6085] line-through">{m.original}</span>
+          <span className="text-fix-ink font-semibold">{m.corrected}</span>
+          <span className="text-dim text-sm">{m.explanation}</span>
+        </div>
+      ))}
+    </section>
   );
 }

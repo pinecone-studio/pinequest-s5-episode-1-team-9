@@ -348,6 +348,7 @@ export type FeedbackStatus = "pending" | "ready" | "insufficient_data" | "no_con
 export interface FeedbackDTO {
   id: string;
   conversationId: string;
+  partnerName: string;
   status: FeedbackStatus;
   statusMessage: string | null;
   targetLanguage: string;

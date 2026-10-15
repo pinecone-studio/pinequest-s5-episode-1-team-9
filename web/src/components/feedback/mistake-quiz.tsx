@@ -1,19 +1,16 @@
 "use client";
 
 import type { QuizAnsweredDTO, QuizDTO } from "@linguamatch/shared";
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const CATEGORY_LABEL: Record<string, string> = {
-  grammar: "Grammar",
-  vocabulary: "Vocabulary",
-  word_choice: "Word choice",
-  sentence_structure: "Sentence structure",
+const CATEGORY_BLURB: Record<string, string> = {
+  grammar: "grammar slips",
+  vocabulary: "word choices",
+  word_choice: "word choices",
+  sentence_structure: "sentence shapes",
 };
 
 export function MistakeQuiz({ conversationId }: { conversationId: string }) {
@@ -67,95 +64,101 @@ export function MistakeQuiz({ conversationId }: { conversationId: string }) {
   };
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="text-primary size-4" /> Practice your mistakes
-          </CardTitle>
-          <Badge variant="secondary">{CATEGORY_LABEL[quiz.category] ?? quiz.category}</Badge>
-        </div>
-        <CardDescription>
-          Built from the {CATEGORY_LABEL[quiz.category]?.toLowerCase() ?? quiz.category} slips in this conversation.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="grid gap-4">
+    <section
+      aria-labelledby="quiz"
+      className="bg-brand-you-tint flex flex-wrap gap-7 rounded-3xl p-7"
+    >
+      <div className="flex min-w-0 flex-1 basis-65 flex-col gap-2.5">
+        <h2 id="quiz" className="font-display m-0 text-2xl leading-[1.25] font-bold">
+          Practice your mistakes
+        </h2>
+        <p className="m-0 leading-[1.55] text-[#2F3566]">
+          Four quick questions built from the {CATEGORY_BLURB[quiz.category] ?? quiz.category} in this call. Finish
+          them for +10 XP.
+        </p>
         {done ? (
-          <div className="grid gap-3">
-            <p className="text-lg font-semibold tabular-nums">
-              {score}/{quiz.total} correct
-            </p>
-            {xpGained !== null && xpGained > 0 && <p className="text-primary text-sm">+{xpGained} XP earned</p>}
-            <ol className="grid gap-2 text-sm">
-              {quiz.questions.map((q, i) => {
-                const r = resultFor(i);
-                return (
-                  <li key={i} className="flex items-start gap-2">
-                    {r?.correct ? (
-                      <Check className="text-success mt-0.5 size-4 shrink-0" />
-                    ) : (
-                      <X className="text-destructive mt-0.5 size-4 shrink-0" />
+          <span className="text-brand-you-deep font-semibold tabular-nums">
+            {score}/{quiz.total} correct
+            {xpGained !== null && xpGained > 0 ? ` · +${xpGained} XP` : ""}
+          </span>
+        ) : (
+          <span className="text-brand-you-deep font-semibold">
+            Question {current + 1} of {quiz.total}
+          </span>
+        )}
+      </div>
+
+      <div className="flex min-w-0 shrink basis-105 flex-col gap-3 rounded-[20px] bg-white p-6 grow-[1.6]">
+        {done ? (
+          <ol className="m-0 flex list-none flex-col gap-2.5 p-0">
+            {quiz.questions.map((q, i) => {
+              const r = resultFor(i);
+              return (
+                <li key={i} className="flex items-start gap-2 text-[15px]">
+                  {r?.correct ? (
+                    <Check aria-hidden="true" className="text-fix-ink mt-0.5 size-4.5 shrink-0" strokeWidth={2.6} />
+                  ) : (
+                    <X aria-hidden="true" className="mt-0.5 size-4.5 shrink-0 text-[#B4232B]" />
+                  )}
+                  <span>
+                    {q.prompt}
+                    {r && !r.correct && (
+                      <strong className="text-fix-ink"> {q.options[r.correctIndex]}</strong>
                     )}
-                    <span>
-                      {q.prompt}
-                      {r && !r.correct && (
-                        <span className="text-muted-foreground"> — {q.options[r.correctIndex]}</span>
-                      )}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
         ) : (
           question && (
             <>
-              <div className="text-muted-foreground text-xs tabular-nums">
-                Question {current + 1} of {quiz.total}
-              </div>
-              <p className="font-medium">{question.prompt}</p>
-              <div className="grid gap-2">
-                {question.options.map((option, i) => {
-                  const picked = result?.choice === i;
-                  const isAnswer = result && i === result.correctIndex;
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      disabled={Boolean(result) || busy}
-                      onClick={() => void choose(i)}
-                      className={cn(
-                        "rounded-lg border px-3 py-2 text-left text-sm transition",
-                        !result && "hover:bg-muted/60",
-                        isAnswer && "border-success/50 bg-success/10",
-                        picked && !result?.correct && "border-destructive/50 bg-destructive/10",
-                      )}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-
+              <p className="m-0 text-[19px] leading-[1.45] font-semibold">{question.prompt}</p>
+              {question.options.map((option, i) => {
+                const picked = result?.choice === i;
+                const isAnswer = result && i === result.correctIndex;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={Boolean(result) || busy}
+                    onClick={() => void choose(i)}
+                    className={cn(
+                      "flex min-h-13 items-center justify-between rounded-[14px] px-4 text-left text-[17px]",
+                      isAnswer
+                        ? "text-fix-ink border-fix border-2 bg-[#E7F6EE] font-bold"
+                        : picked
+                          ? "border-2 border-[#B4232B] bg-[#FBEAEA] font-bold text-[#8C1A21]"
+                          : "border border-[#D6DAEA] bg-white font-medium",
+                      !result && !busy && "hover:border-brand-you cursor-pointer",
+                    )}
+                  >
+                    {option}
+                    {isAnswer && <Check aria-hidden="true" className="size-5" strokeWidth={2.6} />}
+                  </button>
+                );
+              })}
               {result && (
-                <div className="grid gap-2">
-                  <p className={cn("text-sm font-medium", result.correct ? "text-success" : "text-destructive")}>
-                    {result.correct ? "Correct" : "Not quite"}
+                <>
+                  <p role="status" className={cn("m-0 font-semibold", result.correct ? "text-fix-ink" : "text-[#8C1A21]")}>
+                    {result.correct ? "Right." : "Not quite."} {result.explanation}
                   </p>
-                  <p className="text-muted-foreground text-sm">{result.explanation}</p>
                   {current + 1 < quiz.total && (
-                    <Button size="sm" className="justify-self-start" onClick={() => setCurrent((c) => c + 1)}>
+                    <button
+                      type="button"
+                      onClick={() => setCurrent((c) => c + 1)}
+                      className="bg-brand-you min-h-12 self-end rounded-xl border-0 px-5 text-base font-bold text-white"
+                    >
                       Next question
-                    </Button>
+                    </button>
                   )}
-                </div>
+                </>
               )}
             </>
           )
         )}
-        {error && <p className="text-destructive text-sm">{error}</p>}
-      </CardContent>
-    </Card>
+        {error && <p className="m-0 text-sm text-[#8C1A21]">{error}</p>}
+      </div>
+    </section>
   );
 }
