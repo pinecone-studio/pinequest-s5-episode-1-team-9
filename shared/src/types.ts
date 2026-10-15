@@ -161,6 +161,34 @@ export type FriendCallStatus =
   | "timeout"
   | "cancelled";
 
+export interface ChatMessageDTO {
+  id: string;
+  userId: string;
+  text: string;
+  at: number;
+}
+
+export interface ChatEvidenceLine {
+  userId: string;
+  text: string;
+  at: string;
+}
+
+export const CHAT_MAX_CHARS = 500;
+
+export interface DraftAssist {
+  mode: "ok" | "fix" | "translate";
+  fixed: string | null;
+  reason: string | null;
+  english: string | null;
+}
+
+export interface SuggestedWord {
+  word: string;
+  meaning: string;
+  example: string;
+}
+
 export interface RoleplayCard {
   scenarioTitle: string;
   roleName: string;
@@ -194,6 +222,11 @@ export interface ClientToServerEvents {
   "roleplay:start": (payload: { roomId: string }) => void;
   "roleplay:end": (payload: { roomId: string }) => void;
   "roleplay:sync": (payload: { roomId: string }) => void;
+  "chat:send": (payload: { roomId: string; text: string }) => void;
+  "chat:sync": (payload: { roomId: string }) => void;
+  "chat:assist": (payload: { roomId: string; draft: string }) => void;
+  "chat:suggest": (payload: { roomId: string; topic?: string; recent?: string[] }) => void;
+  "chat:caption": (payload: { roomId: string; text: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -226,6 +259,12 @@ export interface ServerToClientEvents {
   }) => void;
   "friend:incoming-cancelled": (payload: { inviteId: string }) => void;
   "roleplay:card": (payload: { card: RoleplayCard | null; loading: boolean; error?: string }) => void;
+  "chat:message": (payload: ChatMessageDTO) => void;
+  "chat:state": (payload: { messages: ChatMessageDTO[]; suggestions: SuggestedWord[]; aiAvailable: boolean }) => void;
+  "chat:assist": (payload: { assist: DraftAssist | null; loading: boolean }) => void;
+  "chat:suggestions": (payload: { words: SuggestedWord[] }) => void;
+  "chat:word-credited": (payload: { word: string; xpGained: number; totalXp: number; xpLevel: number; cappedByDailyLimit: boolean }) => void;
+  "chat:error": (payload: { reason: "empty" | "too_long" | "rate_limited" }) => void;
 }
 
 export interface RTCIceServerLike {
@@ -382,6 +421,7 @@ export interface AdminReportDTO {
   sessionEndedAt: string | null;
   createdAt: string;
   activeBan: AdminBanDTO | null;
+  chatEvidence: ChatEvidenceLine[] | null;
 }
 
 export interface AdminUserDTO {

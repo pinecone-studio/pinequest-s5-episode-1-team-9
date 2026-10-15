@@ -12,6 +12,7 @@ import {
   setQueuedCheck,
   startCall,
 } from "../services/friends/friendCalls";
+import { assist, creditCaption, refreshSuggestions, sendMessage, syncChat } from "../services/chat/chatService";
 import { endRoleplay, startRoleplay, syncRoleplay } from "../services/roleplay/roleplayService";
 import { findOrCreateUser } from "../models/User";
 import {
@@ -147,6 +148,41 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "frame:sample",
       safe(socket, async (payload) => {
         if (isRoomId(payload?.roomId)) await addVideoFrame(socket, payload);
+      }),
+    );
+
+    socket.on(
+      "chat:send",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await sendMessage(payload.roomId, userId, payload.text);
+      }),
+    );
+
+    socket.on(
+      "chat:sync",
+      safe(socket, (payload) => {
+        if (isRoomId(payload?.roomId)) syncChat(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
+      "chat:assist",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await assist(payload.roomId, userId, payload.draft);
+      }),
+    );
+
+    socket.on(
+      "chat:suggest",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await refreshSuggestions(payload.roomId, userId, payload);
+      }),
+    );
+
+    socket.on(
+      "chat:caption",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await creditCaption(payload.roomId, userId, payload.text);
       }),
     );
 

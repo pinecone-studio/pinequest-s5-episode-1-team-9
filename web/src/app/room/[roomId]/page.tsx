@@ -13,6 +13,7 @@ import { Ban, Flag, Loader2, Mic, MicOff, PhoneOff, SkipForward, Video, VideoOff
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChatPanel } from "@/components/room/chat-panel";
 import { CoachPanel } from "@/components/room/coach-panel";
 import { LiveCaptions } from "@/components/room/live-captions";
 import { BlockDialog, ReportDialog } from "@/components/room/safety-dialogs";
@@ -26,6 +27,7 @@ import { useFrameSampler, type SampledFrame } from "@/hooks/useFrameSampler";
 import { useLocalMedia } from "@/hooks/useLocalMedia";
 import { useSpeechRecognition, type RecognizedSegment } from "@/hooks/useSpeechRecognition";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { useChat } from "@/hooks/useChat";
 import { useRoleplay } from "@/hooks/useRoleplay";
 import { useRequireUser } from "@/lib/auth";
 import { currentSocket, getSocket, type AppSocket } from "@/lib/socket";
@@ -151,6 +153,10 @@ export default function RoomPage() {
     enabled: consent && media.micOn && Boolean(info) && !ended,
     onSegment,
   });
+  const chat = useChat(socket, roomId, Boolean(info) && !ended, {
+    topic: roleplay.card?.scenarioTitle ?? topic?.title ?? "",
+    recent: speech.finals,
+  });
 
   // Periodic camera-frame sampling on MY own feed, with consent, for real-time safety review.
   const onFrame = useCallback(
@@ -261,6 +267,8 @@ export default function RoomPage() {
           speech={{ status: consent ? speech.status : "off", muted: !media.micOn }}
           roleplay={roleplay}
         />
+
+        <ChatPanel chat={chat} myUserId={user.id} />
       </main>
 
       {/* Controls */}

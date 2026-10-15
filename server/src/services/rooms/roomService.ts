@@ -16,6 +16,7 @@ import type { MatchPair } from "../matchmaking/algorithm";
 import { clearModerationBuffer, recordForModeration, recordFrameForModeration } from "../moderation/aiModerationQueue";
 import { iceServers } from "../rtc/iceServers";
 import { sanitizeSegment } from "../speech";
+import { clearChat } from "../chat/chatService";
 import { clearRoleplay } from "../roleplay/roleplayService";
 import { pickTopic } from "../topics/aiTopics";
 import { awardXpForSession } from "../xp/xpService";
@@ -361,6 +362,7 @@ export async function endSession(sessionId: string, byUserId: string | null, rea
   rooms.delete(sessionId);
   clearModerationBuffer(sessionId);
   clearRoleplay(sessionId);
+  clearChat(sessionId);
   if (!ended) return;
 
   const io = getIO();
