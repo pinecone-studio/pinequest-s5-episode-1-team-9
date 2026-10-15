@@ -11,6 +11,8 @@ import type {
   FriendRequestsDTO,
   ProfileStats,
   UserDTO,
+  QuizAnswerResultDTO,
+  QuizDTO,
   UserSearchResultDTO,
   XpSessionDTO,
   XpSummaryDTO,
@@ -154,6 +156,10 @@ export const api = {
   report: (conversationId: string, reason: string, details: string) =>
     request<{ ok: true }>(`/conversations/${conversationId}/report`, { body: { reason, details } }),
   block: (conversationId: string) => request<{ ok: true }>(`/conversations/${conversationId}/block`, { body: {} }),
+
+  quiz: (conversationId: string) => request<{ quiz: QuizDTO | null }>(`/conversations/${conversationId}/quiz`),
+  answerQuiz: (conversationId: string, index: number, choice: number) =>
+    request<QuizAnswerResultDTO>(`/conversations/${conversationId}/quiz/answer`, { body: { index, choice } }),
 
   xpMe: () => request<XpSummaryDTO>("/xp/me"),
   xpSession: (conversationId: string) => request<XpSessionDTO>(`/xp/session/${conversationId}`),

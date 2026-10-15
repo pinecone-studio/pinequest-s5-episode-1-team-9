@@ -12,6 +12,9 @@ import {
   setQueuedCheck,
   startCall,
 } from "../services/friends/friendCalls";
+import { relayBalance } from "../services/balance/balanceService";
+import { assist, creditCaption, refreshSuggestions, sendMessage, syncChat } from "../services/chat/chatService";
+import { endRoleplay, startRoleplay, syncRoleplay } from "../services/roleplay/roleplayService";
 import { findOrCreateUser } from "../models/User";
 import {
   addTranscriptSegment,
@@ -146,6 +149,69 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "frame:sample",
       safe(socket, async (payload) => {
         if (isRoomId(payload?.roomId)) await addVideoFrame(socket, payload);
+      }),
+    );
+
+    socket.on(
+      "balance:report",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await relayBalance(payload.roomId, userId, payload);
+      }),
+    );
+
+    socket.on(
+      "chat:send",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await sendMessage(payload.roomId, userId, payload.text);
+      }),
+    );
+
+    socket.on(
+      "chat:sync",
+      safe(socket, (payload) => {
+        if (isRoomId(payload?.roomId)) syncChat(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
+      "chat:assist",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await assist(payload.roomId, userId, payload.draft);
+      }),
+    );
+
+    socket.on(
+      "chat:suggest",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await refreshSuggestions(payload.roomId, userId, payload);
+      }),
+    );
+
+    socket.on(
+      "chat:caption",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await creditCaption(payload.roomId, userId, payload.text);
+      }),
+    );
+
+    socket.on(
+      "roleplay:start",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await startRoleplay(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
+      "roleplay:end",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await endRoleplay(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
+      "roleplay:sync",
+      safe(socket, (payload) => {
+        if (isRoomId(payload?.roomId)) syncRoleplay(payload.roomId, userId);
       }),
     );
 

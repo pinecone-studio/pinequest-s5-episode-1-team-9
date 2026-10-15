@@ -13,6 +13,7 @@ import { Ban, Flag, Loader2, Mic, MicOff, PhoneOff, SkipForward, Video, VideoOff
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChatPanel } from "@/components/room/chat-panel";
 import { CoachPanel } from "@/components/room/coach-panel";
 import { LiveCaptions } from "@/components/room/live-captions";
 import { BlockDialog, ReportDialog } from "@/components/room/safety-dialogs";
@@ -26,6 +27,10 @@ import { useFrameSampler, type SampledFrame } from "@/hooks/useFrameSampler";
 import { useLocalMedia } from "@/hooks/useLocalMedia";
 import { useSpeechRecognition, type RecognizedSegment } from "@/hooks/useSpeechRecognition";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { useChat } from "@/hooks/useChat";
+import { useMicActivity } from "@/hooks/useMicActivity";
+import { useRoleplay } from "@/hooks/useRoleplay";
+import { useTalkBalance } from "@/hooks/useTalkBalance";
 import { useRequireUser } from "@/lib/auth";
 import { currentSocket, getSocket, type AppSocket } from "@/lib/socket";
 import { cn, formatClock } from "@/lib/utils";
@@ -49,6 +54,7 @@ export default function RoomPage() {
   const [ended, setEnded] = useState<{ reason: RoomEndReason } | null>(null);
   const [dialog, setDialog] = useState<null | "report" | "block">(null);
   const [now, setNow] = useState(Date.now());
+  const roleplay = useRoleplay(socket, roomId, Boolean(info) && !ended);
 
   /** What *I* did, so we know where to go when the server confirms the room ended. */
   const myAction = useRef<null | "ended" | "next" | "moderation">(null);
@@ -148,6 +154,19 @@ export default function RoomPage() {
     locale: speechLocale,
     enabled: consent && media.micOn && Boolean(info) && !ended,
     onSegment,
+  });
+  const micMs = useMicActivity(media.stream, Boolean(info) && !ended && speech.status !== "listening");
+  const talk = useTalkBalance({
+    socket,
+    roomId,
+    ready: Boolean(info) && !ended,
+    startedAt: info?.startedAt ?? null,
+    mineMs: speech.speakingMs > 0 ? speech.speakingMs : micMs,
+    questions: roleplay.card ? [roleplay.card.situation] : (topic?.questions ?? []),
+  });
+  const chat = useChat(socket, roomId, Boolean(info) && !ended, {
+    topic: roleplay.card?.scenarioTitle ?? topic?.title ?? "",
+    recent: speech.finals,
   });
 
   // Periodic camera-frame sampling on MY own feed, with consent, for real-time safety review.
@@ -257,7 +276,11 @@ export default function RoomPage() {
           error={topicError}
           onNewTopic={() => socket?.emit("topic:request", { roomId })}
           speech={{ status: consent ? speech.status : "off", muted: !media.micOn }}
+          roleplay={roleplay}
+          talk={talk}
         />
+
+        <ChatPanel chat={chat} myUserId={user.id} />
       </main>
 
       {/* Controls */}

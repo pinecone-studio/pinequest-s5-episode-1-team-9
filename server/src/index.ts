@@ -10,6 +10,7 @@ import { assessmentRouter } from "./routes/assessment";
 import { authRouter } from "./routes/auth";
 import { conversationsRouter } from "./routes/conversations";
 import { friendsRouter } from "./routes/friends";
+import { quizRouter } from "./routes/quiz";
 import { usersRouter } from "./routes/users";
 import { xpRouter } from "./routes/xp";
 import { isAIConfigured } from "./services/ai";
@@ -62,6 +63,7 @@ async function main() {
   app.use("/api/me", usersRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/conversations", conversationsRouter);
+  app.use("/api/conversations", quizRouter);
   app.use("/api/assessment", assessmentRouter);
   app.use("/api/xp", xpRouter);
   app.use("/api/friends", friendsRouter);

@@ -1,0 +1,2 @@
+ALTER TABLE "feedback_reports" ADD COLUMN "quiz_json" jsonb;--> statement-breakpoint
+ALTER TABLE "feedback_reports" ADD CONSTRAINT "feedback_reports_quiz_json_is_object" CHECK ("feedback_reports"."quiz_json" is null or jsonb_typeof("feedback_reports"."quiz_json") = 'object');
