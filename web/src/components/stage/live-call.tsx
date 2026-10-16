@@ -11,7 +11,6 @@ import {
   type Topic,
 } from "@linguamatch/shared";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatPanel } from "@/components/room/chat-panel";
 import { CoachPanel } from "@/components/room/coach-panel";
@@ -32,8 +31,10 @@ import { useRoleplay } from "@/hooks/useRoleplay";
 import { useSpeechRecognition, type RecognizedSegment } from "@/hooks/useSpeechRecognition";
 import { useTalkBalance } from "@/hooks/useTalkBalance";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useOnlineCount } from "@/lib/online";
+import { forgetRoom } from "@/lib/active-room";
 import { currentSocket, getSocket, type AppSocket } from "@/lib/socket";
 import { formatClock } from "@/lib/utils";
 
@@ -43,12 +44,14 @@ export function LiveCall({
   roomId,
   onNext,
   onFeedback,
+  onExit,
 }: {
   roomId: string;
   onNext: () => void;
   onFeedback: (conversationId: string) => void;
+  onExit: () => void;
 }) {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const online = useOnlineCount();
   const media = useLocalMedia();
   const [socket, setSocket] = useState<AppSocket | null>(null);
@@ -72,7 +75,7 @@ export function LiveCall({
   const [now, setNow] = useState(Date.now());
   const roleplay = useRoleplay(socket, roomId, Boolean(info) && !ended);
 
-  const myAction = useRef<null | "ended" | "next" | "moderation">(null);
+  const myAction = useRef<null | "ended" | "next" | "stop" | "moderation">(null);
   const joined = useRef(false);
   const mounted = useRef(false);
   const transcriptSequence = useRef(0);
@@ -103,7 +106,9 @@ export function LiveCall({
     return () => {
       mounted.current = false;
       setTimeout(() => {
-        if (!mounted.current && !myAction.current) currentSocket()?.emit("room:leave", { roomId, reason: "ended" });
+        if (mounted.current || myAction.current) return;
+        forgetRoom();
+        currentSocket()?.emit("room:leave", { roomId, reason: "ended" });
       }, 0);
     };
   }, [roomId]);
@@ -132,9 +137,11 @@ export function LiveCall({
     };
     const onEnded = (e: { conversationId: string; reason: RoomEndReason; byPartner: boolean }) => {
       if (e.conversationId !== roomId) return;
+      forgetRoom();
       myAction.current ??= "moderation";
       if (!e.byPartner) {
         if (myAction.current === "next") onNext();
+        else if (myAction.current === "stop") onExit();
         else onFeedback(roomId);
       } else {
         setEnded({ reason: e.reason });
@@ -154,12 +161,26 @@ export function LiveCall({
       socket.off("room:ended", onEnded);
       socket.off("room:error", onError);
     };
-  }, [socket, roomId, startRtc, onNext, onFeedback]);
+  }, [socket, roomId, startRtc, onNext, onFeedback, onExit]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  const profileLevel =
+    user?.targetLanguages.find((t) => t.language === user.activeTargetLanguage)?.level ?? null;
+  const changeLevel = useCallback(
+    (next: CefrLevel) => {
+      const lang = user?.activeTargetLanguage;
+      if (!lang) return;
+      void api
+        .setLanguage(lang, next)
+        .then(refresh)
+        .catch(() => {});
+    },
+    [user?.activeTargetLanguage, refresh],
+  );
 
   const consent = Boolean(user?.privacy.transcriptionConsent);
   const speechLocale = getTargetLanguage(info?.targetLanguage ?? "")?.speechLocale ?? "en-US";
@@ -217,10 +238,9 @@ export function LiveCall({
     onFrame,
   });
 
-  const leave = (reason: "ended" | "next") => {
+  const leave = (reason: "ended" | "next" | "stop") => {
     myAction.current = reason;
-    setLeaving(true);
-    socket?.emit("room:leave", { roomId, reason });
+    socket?.emit("room:leave", { roomId, reason: reason === "stop" ? "ended" : reason });
   };
   const afterModeration = () => {
     myAction.current = "moderation";
@@ -233,11 +253,9 @@ export function LiveCall({
         <div className="flex flex-col items-center gap-6">
           <p className="m-0 text-lg">{roomError}</p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Button asChild>
-              <Link href="/">Find a partner</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/profile">Your profile</Link>
+            <Button onClick={onNext}>Find a partner</Button>
+            <Button variant="outline" onClick={onExit}>
+              Back to start
             </Button>
           </div>
         </div>
@@ -254,7 +272,7 @@ export function LiveCall({
 
   return (
     <section aria-label="In a call" className="bg-stage flex min-h-dvh flex-col text-white">
-      <StageHeader online={online} compact>
+      <StageHeader online={online} compact onHome={onExit}>
         <span className="rounded-full bg-white/8 px-3 py-2">
           {info ? `${languageName(info.targetLanguage)}, ${levelShort(info.targetLanguage, info.yourLevel)}` : "Connecting…"}
         </span>
@@ -286,22 +304,21 @@ export function LiveCall({
               mirrored
               muted
               showVideo={media.camOn}
-            >
-              <LiveCaptions speech={speech} consent={consent} />
-            </VideoTile>
+            />
           </div>
+
+          <LiveCaptions speech={speech} consent={consent} />
 
           {socket && user && (
             <EmojiReactions socket={socket} roomId={roomId} myUserId={user.id} layer={floatLayer} />
           )}
 
           <LiveControls
-            micOn={media.micOn}
-            camOn={media.camOn}
-            hasVideo={media.hasVideo}
-            onToggleMic={media.toggleMic}
-            onToggleCam={media.toggleCam}
+            language={user?.activeTargetLanguage ?? null}
+            level={profileLevel}
+            onLevel={changeLevel}
             onNext={() => leave("next")}
+            onStop={() => leave("stop")}
             onReport={() => setDialog("report")}
           />
 
@@ -335,7 +352,7 @@ export function LiveCall({
           Block this person
         </Button>
         <Button variant="ghost" size="sm" className="text-dim-dark" onClick={() => leave("ended")}>
-          End call
+          End and see my report
         </Button>
       </div>
 

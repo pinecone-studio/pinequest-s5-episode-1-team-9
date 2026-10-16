@@ -1,7 +1,7 @@
 import { verifyToken } from "@clerk/backend";
 import { clerkAuthorizedParties, env } from "../config/env";
 
-export type AuthFailureReason = "missing" | "invalid_token" | "wrong_origin" | "unknown_user" | "deleted_user";
+export type AuthFailureReason = "missing" | "invalid_token" | "wrong_origin" | "unknown_user" | "deleted_user" | "banned_user";
 
 export type VerifyResult = { ok: true; userId: string } | { ok: false; reason: AuthFailureReason };
 

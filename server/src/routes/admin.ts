@@ -34,6 +34,7 @@ import { isOnboarded, type User, type UserPatch } from "../models/User";
 import { activeBansFor, findActiveBan } from "../services/moderation/moderationService";
 import { endSession } from "../services/rooms/roomService";
 import { matchmaker } from "../socket";
+import { getIO, userRoom } from "../socket/io";
 import { HttpError, parseBody } from "../utils/http";
 
 export const adminRouter = Router();
@@ -95,6 +96,7 @@ async function kickUser(userId: string) {
     .where(and(inArray(sessions.status, ["pending", "active"]), involvesUser(userId)))
     .then((rows) => rows.map((r) => r.id));
   for (const id of open) await endSession(id, userId, "partner_left");
+  getIO().in(userRoom(userId)).disconnectSockets(true);
 }
 
 async function countOpenReportsFor(userIds: string[]): Promise<Map<string, number>> {
