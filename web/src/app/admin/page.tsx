@@ -208,15 +208,16 @@ function OverviewTab() {
 
 function ReportsTab() {
   const [filter, setFilter] = useState("");
+  const [aiFilter, setAiFilter] = useState<"" | "true" | "false">("");
   const [reports, setReports] = useState<AdminReportDTO[]>([]);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<AdminReportDTO | null>(null);
 
-  const load = useCallback((status = "") => {
+  const load = useCallback((status = "", aiFlag: "" | "true" | "false" = "") => {
     setError(null);
     adminApi
-      .reports({ status: status || undefined })
+      .reports({ status: status || undefined, aiFlag: aiFlag || undefined })
       .then((r) => {
         setReports(r.reports);
         setTotal(r.total);
@@ -224,21 +225,31 @@ function ReportsTab() {
       .catch((e) => setError((e as Error).message));
   }, []);
 
-  useEffect(() => load(filter), [filter, load]);
+  useEffect(() => load(filter, aiFilter), [filter, aiFilter, load]);
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <NativeSelect value={filter} onChange={(e) => setFilter(e.target.value)} className="w-48" aria-label="Filter reports">
             <option value="">Open queue</option>
             <option value="under_review">Under review</option>
             <option value="actioned">Actioned</option>
             <option value="dismissed">Dismissed</option>
           </NativeSelect>
+          <NativeSelect
+            value={aiFilter}
+            onChange={(e) => setAiFilter(e.target.value as "" | "true" | "false")}
+            className="w-44"
+            aria-label="Filter AI reports"
+          >
+            <option value="">All report sources</option>
+            <option value="true">AI-generated</option>
+            <option value="false">User-submitted</option>
+          </NativeSelect>
           <span className="text-muted-foreground text-sm">{total} result{total === 1 ? "" : "s"}</span>
         </div>
-        <Button size="sm" variant="outline" onClick={() => load(filter)}>
+        <Button size="sm" variant="outline" onClick={() => load(filter, aiFilter)}>
           Refresh
         </Button>
       </div>
