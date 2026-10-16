@@ -79,6 +79,8 @@
   --border: #E1E4F0;
   --input: #E1E4F0;
   --ring: #3B63E8;
+}
+
 .light {
   color-scheme: light;
   --app-stage: #F2F4FA;
