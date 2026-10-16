@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LogoMark, LogoWord } from "@/components/brand/logo-mark";
+import { ThemeToggle } from "@/components/site/theme-toggle";
 
 export function StageHeader({
   online,
@@ -44,6 +45,7 @@ export function StageHeader({
             </Link>
           </>
         )}
+        <ThemeToggle />
       </div>
     </header>
   );
