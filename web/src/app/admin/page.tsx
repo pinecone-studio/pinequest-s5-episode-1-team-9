@@ -100,7 +100,7 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
               Signed in as <span className="font-semibold">{USER_ROLE_LABELS[role]}</span>
             </p>
           </div>
-          <Badge variant="accent" className="rounded-full px-3 py-1.5">
+          <Badge className="rounded-full border-0 bg-brand-partner px-3 py-1.5 text-ink">
             <ShieldCheck /> {USER_ROLE_LABELS[role]}
           </Badge>
         </div>
@@ -115,7 +115,7 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
               className={cn(
                 "rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold transition-colors",
                 tab === t.id
-                  ? "border-white bg-white text-brand-you-deep"
+                  ? "border-brand-partner bg-brand-partner text-ink"
                   : "border-transparent text-white/85 hover:bg-white/10 hover:text-white",
               )}
             >
@@ -139,7 +139,7 @@ function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ cl
   return (
     <Card className="rounded-3xl border-hairline bg-white py-5 shadow-none">
       <CardContent className="flex items-center gap-4">
-        <div className="bg-brand-you-tint text-brand-you-deep grid size-11 place-items-center rounded-xl">
+        <div className="bg-brand-partner-tint text-ink grid size-11 place-items-center rounded-xl">
           <Icon className="size-5" />
         </div>
         <div>
