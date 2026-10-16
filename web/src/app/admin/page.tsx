@@ -54,8 +54,8 @@ export default function AdminPage() {
   if (user.role === "user") {
     return (
       <PageShell
-        className="min-h-[calc(100dvh-4rem)] max-w-none bg-[#0047AB] text-white"
-        headerClassName="border-[#0047AB] bg-[#0047AB] text-white [&_a]:text-white [&_button]:text-white [&_a>span:first-child]:bg-white [&_a>span:first-child]:text-[#0047AB]"
+        className="min-h-[calc(100dvh-4rem)] max-w-none bg-[#191970] text-white"
+        headerClassName="border-[#191970] bg-[#191970] text-white [&_a]:text-white [&_button]:text-white [&_a>span:first-child]:bg-white [&_a>span:first-child]:text-[#191970]"
       >
         <div className="admin-theme mx-auto w-full max-w-[1240px]">
           <Card className="rounded-3xl border-hairline bg-white">
@@ -86,8 +86,8 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
 
   return (
     <PageShell
-      className="min-h-[calc(100dvh-4rem)] max-w-none bg-[#0047AB] text-white"
-      headerClassName="border-[#0047AB] bg-[#0047AB] text-white [&_a]:text-white [&_button]:text-white [&_a>span:first-child]:bg-white [&_a>span:first-child]:text-[#0047AB]"
+      className="min-h-[calc(100dvh-4rem)] max-w-none bg-[#191970] text-white"
+      headerClassName="border-[#191970] bg-[#191970] text-white [&_a]:text-white [&_button]:text-white [&_a>span:first-child]:bg-white [&_a>span:first-child]:text-[#191970]"
     >
       <div className="admin-theme mx-auto w-full max-w-[1240px]">
         <div className="flex flex-wrap items-end justify-between gap-4">
