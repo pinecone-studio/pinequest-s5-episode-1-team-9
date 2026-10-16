@@ -116,7 +116,7 @@ export async function startCall(callerId: string, calleeId: string): Promise<voi
 
   io.to(userRoom(calleeId)).emit("friend:incoming", {
     inviteId,
-    from: { id: caller.id, username: caller.name },
+    from: { id: caller.id, username: caller.name, level: callerLevel },
     targetLanguage: lang,
     expiresInSeconds: INVITE_TTL_SECONDS,
   });

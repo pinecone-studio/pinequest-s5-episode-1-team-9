@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Call room with role-play</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=Unbounded:wght@500;700&amp;display=swap">
+<style>
+body{margin:0;background:#14123A}
+button:focus-visible,input:focus-visible{outline:3px solid #F0A532;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #14123A; color: #FFFFFF; font-family: 'Onest', system-ui, sans-serif; display: flex; flex-direction: column;">
+  <header style="padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span aria-hidden="true" style="display: flex; gap: 3px;"><span style="display: block; width: 18px; height: 10px; border-radius: 5px; background: #3B63E8;"></span><span style="display: block; width: 12px; height: 10px; border-radius: 5px; background: #F0A532;"></span></span>
+      <span style="font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 17px;">LinguaMatch</span>
+    </div>
+    <div style="display: flex; gap: 10px; font-size: 15px;">
+      <span style="padding: 8px 12px; border-radius: 999px; background: rgba(240,165,50,0.18); color: #F7C978; font-weight: 600;">Role-play on</span>
+      <span style="padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.08); font-variant-numeric: tabular-nums;">14:05</span>
+    </div>
+  </header>
+
+  <main style="flex: 1; display: flex; flex-wrap: wrap; gap: 20px; padding: 20px 24px; align-items: flex-start;">
+    <div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
+        <div style="position: relative; aspect-ratio: 4 / 3; border-radius: 22px; background: #2A2763; border: 3px solid #F0A532; display: flex; align-items: center; justify-content: center;">
+          <span aria-hidden="true" style="width: 96px; height: 96px; border-radius: 50%; background: #F0A532; color: #1C1A45; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 36px;">M</span>
+          <span style="position: absolute; left: 14px; top: 14px; padding: 6px 12px; border-radius: 999px; background: #F0A532; color: #1C1A45; font-weight: 700; font-size: 14px;">Maya as the receptionist</span>
+        </div>
+        <div style="position: relative; aspect-ratio: 4 / 3; border-radius: 22px; background: #232C6E; border: 3px solid #3B63E8; display: flex; align-items: center; justify-content: center;">
+          <span aria-hidden="true" style="width: 96px; height: 96px; border-radius: 50%; background: #3B63E8; display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 36px;">B</span>
+          <span style="position: absolute; left: 14px; top: 14px; padding: 6px 12px; border-radius: 999px; background: #3B63E8; font-weight: 700; font-size: 14px;">You as the guest</span>
+          <div style="position: absolute; right: 12px; bottom: 12px; max-width: 72%; padding: 12px 14px; border-radius: 14px; background: rgba(20,18,58,0.86); display: flex; flex-direction: column; gap: 4px; font-size: 15px; line-height: 1.4;">
+            <span style="opacity: 0.55;">Excuse me, my room is very noisy.</span>
+            <span style="color: #B9BDE0;">Is there anything you can do…</span>
+          </div>
+        </div>
+      </div>
+      <section aria-label="Chat" style="background: #1F1C4F; border-radius: 22px; padding: 18px; display: flex; gap: 8px; align-items: center;">
+        <label for="rp-chat" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Message</label>
+        <input id="rp-chat" type="text" placeholder="Type a message, or write in Mongolian and press Fix" style="flex: 1; min-width: 0; min-height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18); background: #14123A; color: #FFFFFF; font: 16px 'Onest', sans-serif;">
+        <button type="button" style="min-height: 48px; padding: 0 14px; border: 1px solid #7FE0B0; border-radius: 12px; background: transparent; color: #7FE0B0; font: 700 15px 'Onest', sans-serif; cursor: pointer;">Fix</button>
+        <button type="button" style="min-height: 48px; padding: 0 18px; border: 0; border-radius: 12px; background: #3B63E8; color: #FFFFFF; font: 700 15px 'Onest', sans-serif; cursor: pointer;">Send</button>
+      </section>
+    </div>
+
+    <aside aria-label="Coach" style="flex: 1 1 320px; min-width: 0; background: #1F1C4F; border-radius: 22px; padding: 22px; display: flex; flex-direction: column; gap: 18px; box-sizing: border-box;">
+      <span style="font-size: 14px; color: #B9BDE0;">Your role card. Only you can see it.</span>
+      <div style="background: #FFFFFF; color: #1C1A45; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 12px; border-top: 8px solid #3B63E8;">
+        <h2 style="margin: 0; font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 22px;">You are the guest</h2>
+        <p style="margin: 0; line-height: 1.5; color: #4E537A;">You booked a quiet room at a hotel in Ulaanbaatar, but it's next to the lift and you can't sleep. Your partner is the receptionist.</p>
+        <div style="padding: 12px 14px; border-radius: 12px; background: #FFF4E0; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-weight: 700; color: #8A5300;">Your secret goal</span>
+          <span style="line-height: 1.45;">Get a new room, or a free breakfast if there isn't one.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-weight: 600;">Useful phrases</span>
+          <span style="color: #4E537A;">I was wondering if…</span>
+          <span style="color: #4E537A;">Would it be possible to…</span>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div aria-hidden="true" style="height: 12px; border-radius: 6px; background: #F0A532; overflow: hidden;"><span style="display: block; width: 52%; height: 100%; background: #3B63E8; border-right: 3px solid #1F1C4F;"></span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; color: #D7DAF2;"><span>You 52%</span><span>Maya 48%</span></div>
+      </div>
+      <button type="button" style="min-height: 44px; border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; background: transparent; color: #FFFFFF; font: 600 15px 'Onest', sans-serif; cursor: pointer;">End role-play</button>
+    </aside>
+  </main>
+
+  <footer style="padding: 14px 24px 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;">
+    <button type="button" aria-label="Mute microphone" style="width: 52px; height: 52px; border: 0; border-radius: 50%; background: rgba(255,255,255,0.1); color: #FFFFFF; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    <button type="button" aria-label="Turn camera off" style="width: 52px; height: 52px; border: 0; border-radius: 50%; background: rgba(255,255,255,0.1); color: #FFFFFF; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg></button>
+    <button type="button" style="min-height: 52px; padding: 0 22px; border: 0; border-radius: 999px; background: #FFFFFF; color: #1C1A45; font: 700 16px 'Onest', sans-serif; cursor: pointer;">Next partner</button>
+    <button type="button" style="min-height: 52px; padding: 0 18px; border: 1px solid rgba(255,120,120,0.5); border-radius: 999px; background: transparent; color: #FFB4B4; font: 600 15px 'Onest', sans-serif; cursor: pointer;">Report</button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

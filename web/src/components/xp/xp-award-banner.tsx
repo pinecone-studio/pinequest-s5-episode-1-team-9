@@ -1,11 +1,8 @@
 "use client";
 
 import { DAILY_XP_CAP, type XpSessionDTO } from "@linguamatch/shared";
-import { Flame, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
-import { XpBar } from "./xp-bar";
 
 const POLL_TRIES = 4;
 const POLL_INTERVAL_MS = 1500;
@@ -40,51 +37,48 @@ export function XpAwardBanner({ sessionId }: { sessionId: string }) {
 
   if (!data) return null;
 
-  if (data.xpGained === 0 && !settled) {
-    return (
-      <Card className="mt-8">
-        <CardContent className="text-muted-foreground flex items-center gap-3 py-5 text-sm">
-          <Loader2 className="size-4 animate-spin" /> Working out your XP…
-        </CardContent>
-      </Card>
-    );
-  }
+  const breakdown = [
+    data.xpGained - data.streakBonus > 0 ? `${data.xpGained - data.streakBonus} for the call` : null,
+    data.streakBonus > 0 ? `${data.streakBonus} for your ${data.streakCount}-day streak` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const pct = Math.round(data.progress * 100);
 
   return (
-    <Card className="mt-8">
-      <CardContent className="grid gap-4 py-6">
-        {data.xpGained > 0 ? (
-          <div className="flex items-baseline gap-2">
-            <span className="text-primary text-3xl font-semibold tabular-nums">+{data.xpGained} XP</span>
-            {data.streakBonus > 0 && (
-              <span className="text-warning flex items-center gap-1 text-sm">
-                <Flame className="size-4" /> includes +{data.streakBonus} streak bonus
-              </span>
-            )}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">Talk for 8 minutes or more to earn XP next time.</p>
-        )}
+    <section
+      aria-label="XP earned"
+      className="bg-ink flex flex-wrap items-center gap-7 rounded-3xl p-7 text-white"
+    >
+      <div className="flex shrink flex-col gap-1">
+        <span className="font-display text-fix-glow text-5xl leading-none font-bold">
+          {data.xpGained > 0 ? `+${data.xpGained} XP` : settled ? "No XP" : "…"}
+        </span>
+        <span className="text-dim-dark">
+          {data.xpGained > 0
+            ? breakdown
+            : settled
+              ? "Talk for 8 minutes or more to earn XP."
+              : "Working out your XP…"}
+        </span>
+      </div>
 
-        {data.leveledUp && (
-          <div className="bg-accent text-accent-foreground rounded-xl px-4 py-3">
-            <p className="flex items-center gap-2 font-semibold">
-              <Sparkles className="size-4" /> Level up — you reached Level {data.level}
-            </p>
-            {data.newEmojis.length > 0 && (
-              <p className="mt-1 text-sm">New reactions unlocked: {data.newEmojis.join(" ")}</p>
-            )}
-          </div>
-        )}
-
-        {data.earnedToday >= DAILY_XP_CAP && (
-          <p className="text-muted-foreground text-xs">
-            You&apos;ve hit today&apos;s {DAILY_XP_CAP} XP limit. It resets tomorrow.
-          </p>
-        )}
-
-        <XpBar xp={data.xp} streakCount={data.streakCount} />
-      </CardContent>
-    </Card>
+      <div className="flex min-w-0 flex-1 basis-80 flex-col gap-2">
+        <div className="flex justify-between font-semibold">
+          <span>Level {data.level}</span>
+          <span className="text-dim-dark font-medium tabular-nums">
+            {data.xp.toLocaleString()} of {data.nextGoal.toLocaleString()} XP
+          </span>
+        </div>
+        <div aria-hidden="true" className="h-3 overflow-hidden rounded-md bg-white/12">
+          <span className="bg-fix block h-full transition-all duration-700" style={{ width: `${pct}%` }} />
+        </div>
+        <span className="text-dim-dark text-[15px] tabular-nums">
+          {data.xpToNext.toLocaleString()} XP to Level {data.level + 1}
+          {data.earnedToday >= DAILY_XP_CAP ? ` · today's ${DAILY_XP_CAP} XP limit reached` : ""}
+        </span>
+      </div>
+    </section>
   );
 }

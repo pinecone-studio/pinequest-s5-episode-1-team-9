@@ -1,13 +1,13 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Onest, Unbounded } from "next/font/google";
 import { IncomingCallDialog } from "@/components/friends/incoming-call-dialog";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const onest = Onest({ variable: "--font-onest", subsets: ["latin", "cyrillic"], weight: ["400", "500", "600", "700"] });
+const unbounded = Unbounded({ variable: "--font-unbounded", subsets: ["latin", "cyrillic"], weight: ["700"] });
 
 export const metadata: Metadata = {
   title: "LinguaMatch — Practice languages with real people",
@@ -17,12 +17,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
+      <body className={`${onest.variable} ${unbounded.variable} font-sans`}>
         <ClerkProvider
           appearance={{ theme: shadcn }}
           signInUrl="/login"
           signUpUrl="/signup"
-          signInFallbackRedirectUrl="/match"
+          signInFallbackRedirectUrl="/"
           signUpFallbackRedirectUrl="/onboarding"
           afterSignOutUrl="/"
         >

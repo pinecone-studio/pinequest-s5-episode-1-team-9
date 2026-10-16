@@ -1,7 +1,14 @@
 "use client";
 
 import { useClerk, useUser } from "@clerk/nextjs";
-import { CEFR_LEVELS, NATIVE_LANGUAGES, TARGET_LANGUAGES, languageName, type UserDTO } from "@linguamatch/shared";
+import {
+  NATIVE_LANGUAGES,
+  TARGET_LANGUAGES,
+  languageName,
+  levelOptions,
+  levelScaleNote,
+  type UserDTO,
+} from "@linguamatch/shared";
 import { Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -102,12 +109,21 @@ export default function SettingsPage() {
                     {t.levelSource === "assessment" ? "Level from AI assessment" : "Self-reported level"}
                   </div>
                 </div>
-                <div className="w-24">
-                  <NativeSelect value={t.level} onChange={(e) => save(() => api.setLanguage(t.language, e.target.value))} aria-label="Level">
-                    {CEFR_LEVELS.map((l) => (
-                      <option key={l}>{l}</option>
+                <div className="w-48">
+                  <NativeSelect
+                    value={t.level}
+                    onChange={(e) => save(() => api.setLanguage(t.language, e.target.value))}
+                    aria-label={`Level in ${languageName(t.language)}`}
+                  >
+                    {levelOptions(t.language).map((l) => (
+                      <option key={l.value} value={l.value}>
+                        {l.label}
+                      </option>
                     ))}
                   </NativeSelect>
+                  {levelScaleNote(t.language) && (
+                    <p className="text-muted-foreground mt-1 text-xs">{levelScaleNote(t.language)}</p>
+                  )}
                 </div>
                 {user.activeTargetLanguage === t.language ? (
                   <span className="text-primary text-xs font-medium">Practicing</span>

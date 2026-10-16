@@ -3,13 +3,9 @@
 import { Captions, CaptionsOff } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import type { SpeechStatus } from "@/hooks/useSpeechRecognition";
-import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "linguamatch:captions";
-
-const FADE = ["opacity-35", "opacity-60", "opacity-100"];
 
 function readPreference(): boolean {
   try {
@@ -55,56 +51,51 @@ export function LiveCaptions({
   };
 
   const hint = hintFor(speech.status, consent);
-  const lines = speech.finals.slice(-FADE.length);
+  const lastFinal = speech.finals[speech.finals.length - 1] ?? "";
 
   return (
-    <div className="pointer-events-none absolute right-3 bottom-20 z-10 flex max-w-[70%] flex-col items-end gap-2 sm:bottom-16 sm:max-w-xs">
-      {visible && (
-        <div className="bg-card/80 w-full rounded-xl border px-3 py-2 text-sm shadow-lg backdrop-blur">
-          {hint ? (
-            <p className="text-muted-foreground text-xs leading-relaxed">
+    <div className="flex justify-end">
+      <div className="bg-stage border-brand-you/40 flex w-full items-start gap-2 rounded-[14px] border px-3 py-2 sm:w-[calc(50%-7px)]">
+        <div aria-live="polite" className="flex min-h-10 min-w-0 flex-1 flex-col justify-center gap-0.5">
+          {!visible ? (
+            <span className="text-dim-darker text-xs">Captions hidden</span>
+          ) : hint ? (
+            <span className="text-dim-dark text-xs leading-[1.4]">
               {hint.text}
               {hint.href && (
                 <>
                   {" "}
-                  <Link href={hint.href} className="text-primary pointer-events-auto underline">
-                    Open settings
+                  <Link href={hint.href} className="text-brand-partner underline">
+                    Settings
                   </Link>
                 </>
               )}
-            </p>
-          ) : lines.length === 0 && !speech.interim ? (
-            <p className="text-muted-foreground text-xs">Say something and your words appear here.</p>
+            </span>
+          ) : !lastFinal && !speech.interim ? (
+            <span className="text-dim-darker text-xs">Your words appear here as you speak.</span>
           ) : (
-            <div className="flex flex-col gap-0.5 text-right">
-              {lines.map((line, i) => (
-                <p
-                  key={`${lines.length}-${i}-${line}`}
-                  className={cn(
-                    "text-foreground leading-snug transition-opacity duration-700",
-                    FADE[FADE.length - lines.length + i] ?? "opacity-100",
-                  )}
-                >
-                  {line}
-                </p>
-              ))}
-              {speech.interim && <p className="text-muted-foreground leading-snug">{speech.interim}</p>}
-            </div>
+            <>
+              {lastFinal && (
+                <span className="truncate text-xs leading-[1.4] text-white/70 transition-opacity duration-700">
+                  {lastFinal}
+                </span>
+              )}
+              {speech.interim && (
+                <span className="truncate text-[13px] leading-[1.4] text-white">{speech.interim}</span>
+              )}
+            </>
           )}
         </div>
-      )}
-      <Button
-        type="button"
-        size="icon"
-        variant="secondary"
-        onClick={toggle}
-        aria-label={visible ? "Hide live captions" : "Show live captions"}
-        aria-pressed={visible}
-        title={visible ? "Hide live captions" : "Show live captions"}
-        className="pointer-events-auto size-8 rounded-full"
-      >
-        {visible ? <Captions className="size-4" /> : <CaptionsOff className="size-4" />}
-      </Button>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={visible ? "Hide live captions" : "Show live captions"}
+          aria-pressed={visible}
+          className="grid size-10 shrink-0 place-items-center rounded-full bg-white/8 text-white"
+        >
+          {visible ? <Captions className="size-4.5" /> : <CaptionsOff className="size-4.5" />}
+        </button>
+      </div>
     </div>
   );
 }

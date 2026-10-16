@@ -306,6 +306,22 @@ function ReviewDialog({
           </p>
         )}
 
+        {report?.chatEvidence && report.chatEvidence.length > 0 && (
+          <div className="bg-muted/60 rounded-lg p-3 text-sm">
+            <div className="font-medium">In-call chat</div>
+            <ul className="mt-2 grid gap-1">
+              {report.chatEvidence.map((line, i) => (
+                <li key={i} className="grid grid-cols-[auto_1fr] gap-2">
+                  <span className={line.userId === report.reported.id ? "text-destructive font-medium" : "text-muted-foreground"}>
+                    {line.userId === report.reported.id ? report.reported.username : report.reporter.username}
+                  </span>
+                  <span className="break-words">{line.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="review-action">Decision</Label>

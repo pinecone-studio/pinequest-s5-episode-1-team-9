@@ -57,6 +57,27 @@
       "when": 1791951683885,
       "tag": "0007_faulty_freak",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792047187859,
+      "tag": "0008_dazzling_rocket_racer",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792049068505,
+      "tag": "0009_plain_clea",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792057366883,
+      "tag": "0010_confused_captain_stacy",
+      "breakpoints": true
     }
   ]
 }

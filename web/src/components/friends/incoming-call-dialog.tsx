@@ -1,12 +1,9 @@
 "use client";
 
-import { languageName, type FriendCallInvite } from "@linguamatch/shared";
-import { PhoneIncoming } from "lucide-react";
+import { languageName, levelShort, type FriendCallInvite } from "@linguamatch/shared";
+import { Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/lib/auth";
 import { getSocket } from "@/lib/socket";
 
@@ -65,28 +62,56 @@ export function IncomingCallDialog() {
   const pct = invite.expiresInSeconds ? (secondsLeft / invite.expiresInSeconds) * 100 : 0;
 
   return (
-    <Dialog open>
-      <DialogContent
-        className="[&>button:last-child]:hidden"
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,9,32,0.55)] p-6">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="friend-call-title"
+        aria-describedby="friend-call-desc"
+        className="text-ink flex w-full max-w-[420px] flex-col items-center gap-4 rounded-[28px] bg-white px-7 pt-8 pb-6 text-center"
       >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <PhoneIncoming className="text-primary size-5" /> {invite.from.username} is calling
-          </DialogTitle>
-          <DialogDescription>
-            A {languageName(invite.targetLanguage)} practice call. Answering within {secondsLeft}s.
-          </DialogDescription>
-        </DialogHeader>
-        <Progress value={pct} aria-label={`${secondsLeft} seconds left to answer`} />
-        <DialogFooter>
-          <Button variant="outline" onClick={() => respond(false)}>
+        <span
+          aria-hidden="true"
+          className="lm-pulse bg-brand-partner text-ink font-display grid size-26 place-items-center rounded-full text-[40px] font-bold"
+        >
+          {invite.from.username.charAt(0).toUpperCase()}
+        </span>
+        <h2 id="friend-call-title" className="font-display m-0 text-2xl font-bold">
+          {invite.from.username} is calling
+        </h2>
+        <p id="friend-call-desc" className="text-dim m-0 leading-[1.5]">
+          Video call in {languageName(invite.targetLanguage)}. {invite.from.username} is your friend at{" "}
+          {levelShort(invite.targetLanguage, invite.from.level)}.
+        </p>
+
+        <div className="flex w-full flex-col gap-1.5">
+          <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-sm bg-[#EEF0F7]">
+            <span
+              className="bg-brand-partner block h-full transition-[width] duration-1000 ease-linear"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className="text-[14px] text-[#5B6085]">Answer within {secondsLeft} seconds</span>
+        </div>
+
+        <div className="grid w-full grid-cols-2 gap-2.5 pt-1.5">
+          <button
+            type="button"
+            onClick={() => respond(false)}
+            className="text-ink min-h-13.5 rounded-2xl border border-[#D6DAEA] bg-white text-[17px] font-bold"
+          >
             Decline
-          </Button>
-          <Button onClick={() => respond(true)}>Accept</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </button>
+          <button
+            type="button"
+            onClick={() => respond(true)}
+            className="bg-fix inline-flex min-h-13.5 items-center justify-center gap-2 rounded-2xl border-0 text-[17px] font-bold text-white"
+          >
+            <Video aria-hidden="true" className="size-5" />
+            Accept
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

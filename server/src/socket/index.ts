@@ -12,6 +12,9 @@ import {
   setQueuedCheck,
   startCall,
 } from "../services/friends/friendCalls";
+import { relayBalance } from "../services/balance/balanceService";
+import { assist, creditCaption, refreshSuggestions, sendMessage, syncChat } from "../services/chat/chatService";
+import { endRoleplay, startRoleplay, syncRoleplay } from "../services/roleplay/roleplayService";
 import { findOrCreateUser } from "../models/User";
 import {
   addTranscriptSegment,
@@ -82,9 +85,12 @@ export function createSocketServer(httpServer: HttpServer): IO {
   matchmaker.start();
   setQueuedCheck((userId) => matchmaker.isWaiting(userId));
 
+  const broadcastPresence = () => io.emit("presence:online", { online: io.engine.clientsCount });
+
   io.on("connection", (socket: AppSocket) => {
     const userId = socket.data.userId;
     void socket.join(userRoom(userId));
+    broadcastPresence();
     registerEmojiHandlers(io, socket);
 
     socket.on(
@@ -150,6 +156,69 @@ export function createSocketServer(httpServer: HttpServer): IO {
     );
 
     socket.on(
+      "balance:report",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await relayBalance(payload.roomId, userId, payload);
+      }),
+    );
+
+    socket.on(
+      "chat:send",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await sendMessage(payload.roomId, userId, payload.text);
+      }),
+    );
+
+    socket.on(
+      "chat:sync",
+      safe(socket, (payload) => {
+        if (isRoomId(payload?.roomId)) syncChat(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
+      "chat:assist",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await assist(payload.roomId, userId, payload.draft);
+      }),
+    );
+
+    socket.on(
+      "chat:suggest",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await refreshSuggestions(payload.roomId, userId, payload);
+      }),
+    );
+
+    socket.on(
+      "chat:caption",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await creditCaption(payload.roomId, userId, payload.text);
+      }),
+    );
+
+    socket.on(
+      "roleplay:start",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await startRoleplay(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
+      "roleplay:end",
+      safe(socket, async (payload) => {
+        if (isRoomId(payload?.roomId)) await endRoleplay(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
+      "roleplay:sync",
+      safe(socket, (payload) => {
+        if (isRoomId(payload?.roomId)) syncRoleplay(payload.roomId, userId);
+      }),
+    );
+
+    socket.on(
       "friend:call",
       safe(socket, async (payload) => {
         if (typeof payload?.friendId === "string" && payload.friendId) await startCall(userId, payload.friendId);
@@ -181,6 +250,7 @@ export function createSocketServer(httpServer: HttpServer): IO {
       "disconnect",
       safe(socket, async () => {
         handleSocketDisconnect(socket);
+        broadcastPresence();
         // Only drop the queue entry if this was the socket that queued.
         const remaining = await io.in(userRoom(userId)).fetchSockets();
         if (remaining.length === 0) {

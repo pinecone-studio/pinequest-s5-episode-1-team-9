@@ -18,7 +18,7 @@ import { users, xpEvents } from "../../db/schema";
 
 export type { XpAward };
 
-async function xpEarnedToday(userId: string, today: string): Promise<number> {
+export async function xpEarnedToday(userId: string, today: string): Promise<number> {
   const [row] = await db
     .select({ earned: sql<number>`coalesce(sum(${xpEvents.amount}), 0)::int` })
     .from(xpEvents)
@@ -67,7 +67,7 @@ export async function awardXpForSession(params: {
   const inserted = await db
     .insert(xpEvents)
     .values(events)
-    .onConflictDoNothing({ target: [xpEvents.userId, xpEvents.sessionId, xpEvents.reason] })
+    .onConflictDoNothing()
     .returning({ reason: xpEvents.reason, amount: xpEvents.amount });
 
   if (!inserted.some((r) => r.reason === "call")) return null;

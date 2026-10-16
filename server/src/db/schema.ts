@@ -1,6 +1,7 @@
 import {
   CEFR_LEVELS,
   REPORT_REASONS,
+  type ChatEvidenceLine,
   USER_ROLES,
   type Exercise,
   type FluencyMetrics,
@@ -40,7 +41,7 @@ export const MISTAKE_CATEGORIES = ["grammar", "vocabulary", "sentence_structure"
 export const FEEDBACK_STATUSES = ["pending", "ready", "insufficient_data", "no_consent", "failed"] as const;
 export const REPORT_STATUSES = ["open", "under_review", "actioned", "dismissed"] as const;
 export const BAN_SOURCES = ["automatic", "moderator"] as const;
-export const XP_REASONS = ["call", "streak", "skip_penalty"] as const;
+export const XP_REASONS = ["call", "streak", "skip_penalty", "word", "quiz"] as const;
 export const ADMIN_ACTIONS = [
   "ban_user",
   "revoke_ban",
@@ -89,6 +90,7 @@ export const users = pgTable(
     lastCallDate: date("last_call_date"),
     /** Confirmed 18+ together with the community rules. */
     isAdult: boolean("is_adult").notNull().default(false),
+    prefersVideo: boolean("prefers_video").notNull().default(true),
     transcriptionConsent: boolean("transcription_consent").notNull().default(false),
     retainTranscripts: boolean("retain_transcripts").notNull().default(false),
     rulesAcceptedAt: tz("rules_accepted_at"),
@@ -337,6 +339,7 @@ export const feedbackReports = pgTable(
     summary: text("summary"),
     summaryJson: jsonb("summary_json").$type<FeedbackDetails>(),
     metrics: jsonb("metrics").$type<FluencyMetrics>(),
+    quizJson: jsonb("quiz_json"),
     aiModel: text("ai_model"),
     generatedAt: tz("generated_at"),
     createdAt: createdAt(),
@@ -358,6 +361,7 @@ export const feedbackReports = pgTable(
     ),
     check("feedback_reports_summary_json_is_object", sql`${t.summaryJson} is null or jsonb_typeof(${t.summaryJson}) = 'object'`),
     check("feedback_reports_metrics_is_object", sql`${t.metrics} is null or jsonb_typeof(${t.metrics}) = 'object'`),
+    check("feedback_reports_quiz_json_is_object", sql`${t.quizJson} is null or jsonb_typeof(${t.quizJson}) = 'object'`),
     index("feedback_reports_user_created_idx").on(t.userId, t.createdAt),
   ],
 );
@@ -407,10 +411,16 @@ export const xpEvents = pgTable(
       .references(() => sessions.id, { onDelete: "cascade" }),
     amount: integer("amount").notNull(),
     reason: text("reason", { enum: XP_REASONS }).notNull(),
+    detail: text("detail"),
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex("xp_events_user_session_reason_key").on(t.userId, t.sessionId, t.reason),
+    uniqueIndex("xp_events_user_session_reason_key").on(
+      t.userId,
+      t.sessionId,
+      t.reason,
+      sql`coalesce(${t.detail}, '')`,
+    ),
     check("xp_events_reason_check", oneOf(t.reason, XP_REASONS)),
     index("xp_events_user_created_idx").on(t.userId, t.createdAt),
   ],
@@ -435,6 +445,7 @@ export const reports = pgTable(
     aiFlag: boolean("ai_flag").notNull().default(false),
     /** Evidence location in private storage; moderators get it through a short-lived signed URL. */
     evidenceUrl: text("evidence_url"),
+    chatEvidence: jsonb("chat_evidence").$type<ChatEvidenceLine[]>(),
     status: text("status", { enum: REPORT_STATUSES }).notNull().default("open"),
     reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: "restrict" }),
     reviewedAt: tz("reviewed_at"),

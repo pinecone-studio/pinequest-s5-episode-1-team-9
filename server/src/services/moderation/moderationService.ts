@@ -3,6 +3,7 @@ import { and, countDistinct, desc, eq, gt, gte, inArray, isNull, lte, or } from 
 import { env } from "../../config/env";
 import { db, isUniqueViolation } from "../../db/client";
 import { bans, reports, userBlocks } from "../../db/schema";
+import { chatEvidence } from "../chat/chatService";
 import { findSession, partnerIdOf } from "../../models/Session";
 import { HttpError } from "../../utils/http";
 import { endSession } from "../rooms/roomService";
@@ -36,7 +37,7 @@ export async function reportPartner(userId: string, sessionId: string, reason: R
   try {
     const [report] = await db
       .insert(reports)
-      .values({ reporterId: userId, reportedId: partnerId, sessionId, reason, details })
+      .values({ reporterId: userId, reportedId: partnerId, sessionId, reason, details, chatEvidence: chatEvidence(sessionId) })
       .returning({ id: reports.id });
     reportId = report!.id;
   } catch (err) {

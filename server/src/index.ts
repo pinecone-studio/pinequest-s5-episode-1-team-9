@@ -10,6 +10,7 @@ import { assessmentRouter } from "./routes/assessment";
 import { authRouter } from "./routes/auth";
 import { conversationsRouter } from "./routes/conversations";
 import { friendsRouter } from "./routes/friends";
+import { quizRouter } from "./routes/quiz";
 import { usersRouter } from "./routes/users";
 import { xpRouter } from "./routes/xp";
 import { isAIConfigured } from "./services/ai";
@@ -23,6 +24,7 @@ import {
 import { endStaleSessions } from "./services/rooms/roomService";
 import { SPEECH_MODE, pronunciationCapability } from "./services/speech";
 import { createSocketServer } from "./socket";
+import { getIO } from "./socket/io";
 import { logAuthFailure } from "./utils/auth";
 import { errorHandler } from "./utils/http";
 
@@ -51,6 +53,13 @@ async function main() {
   // Verifies the Clerk session token (Bearer header) and rejects tokens minted for other sites.
   app.use(clerkMiddleware({ authorizedParties: clerkAuthorizedParties }));
 
+  let onlineCache = { at: 0, online: 0 };
+  app.get("/api/online", (_req, res) => {
+    const now = Date.now();
+    if (now - onlineCache.at > 10_000) onlineCache = { at: now, online: getIO().engine.clientsCount };
+    res.json({ online: onlineCache.online });
+  });
+
   app.get("/api/health", (_req, res) => {
     res.json({
       ok: true,
@@ -62,6 +71,7 @@ async function main() {
   app.use("/api/me", usersRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/conversations", conversationsRouter);
+  app.use("/api/conversations", quizRouter);
   app.use("/api/assessment", assessmentRouter);
   app.use("/api/xp", xpRouter);
   app.use("/api/friends", friendsRouter);

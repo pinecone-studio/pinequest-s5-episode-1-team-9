@@ -92,7 +92,14 @@ export async function listFriends(
   if (ids.length === 0) return [];
 
   const rows = await db
-    .select({ id: users.id, username: users.name, nativeLanguage: users.nativeLang, deletedAt: users.deletedAt })
+    .select({
+      id: users.id,
+      username: users.name,
+      nativeLanguage: users.nativeLang,
+      language: users.targetLang,
+      level: users.level,
+      deletedAt: users.deletedAt,
+    })
     .from(users)
     .where(inArray(users.id, ids));
 
@@ -106,6 +113,8 @@ export async function listFriends(
           id: r.id,
           username: r.username,
           nativeLanguage: r.nativeLanguage,
+          language: r.language,
+          level: (r.level ?? null) as FriendDTO["level"],
           online,
           busy,
         };
