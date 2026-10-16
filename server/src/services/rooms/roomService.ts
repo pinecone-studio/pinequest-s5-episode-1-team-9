@@ -309,6 +309,15 @@ export async function addTranscriptSegment(socket: AppSocket, input: TranscriptS
   });
   // Feed the real-time AI moderation window (in memory; the sweeper scans it periodically).
   recordForModeration(session.id, userId, segment.text, segment.startedAt);
+  const partnerSocketId = [...state.sockets].find(([participantId]) => participantId !== userId)?.[1];
+  if (partnerSocketId) {
+    getIO().to(partnerSocketId).emit("transcript:live", {
+      roomId: input.roomId,
+      text: segment.text,
+      startedAt: segment.startedAt.getTime(),
+      endedAt: segment.endedAt.getTime(),
+    });
+  }
 }
 
 /**
