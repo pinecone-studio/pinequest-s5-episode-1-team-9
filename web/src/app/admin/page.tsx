@@ -216,6 +216,7 @@ function ReportsTab() {
         <div className="flex items-center gap-2">
           <NativeSelect value={filter} onChange={(e) => setFilter(e.target.value)} className="w-48" aria-label="Filter reports">
             <option value="">Open queue</option>
+            <option value="under_review">Under review</option>
             <option value="actioned">Actioned</option>
             <option value="dismissed">Dismissed</option>
           </NativeSelect>

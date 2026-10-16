@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn, userId, getToken, signOut } = useClerkAuth();
   const [user, setUser] = useState<UserDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const [suspensionMessage, setSuspensionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setTokenGetter((opts) => getToken(opts));
@@ -40,6 +41,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (isCurrent()) setUser(user);
           break;
         } catch (err) {
+          if (err instanceof ApiError && err.status === 403) {
+            if (isCurrent()) setSuspensionMessage(err.message);
+            break;
+          }
           if (err instanceof ApiError && err.status === 401) {
             // Clerk session without a usable account (e.g. it was deleted): end the session.
             if (isCurrent()) setUser(null);
@@ -77,13 +82,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     disconnectSocket();
     await signOut();
     setUser(null);
+    setSuspensionMessage(null);
   }, [signOut]);
+
+  if (suspensionMessage) {
+    return <SuspensionNotice message={suspensionMessage} onSignOut={() => void logout()} />;
+  }
 
   return (
     <AuthContext.Provider value={{ user, loading, setUser, refresh, logout }}>
       <ServerWakeBanner />
       {children}
     </AuthContext.Provider>
+  );
+}
+
+function SuspensionNotice({ message, onSignOut }: { message: string; onSignOut: () => void }) {
+  return (
+    <main className="grid min-h-dvh place-items-center px-4">
+      <section className="w-full max-w-lg rounded-xl border p-6 text-center">
+        <h1 className="text-2xl font-semibold">Account suspended</h1>
+        <p className="text-muted-foreground mt-3 text-sm">{message}</p>
+        <button className="bg-primary text-primary-foreground mt-6 rounded-md px-4 py-2 text-sm" onClick={onSignOut}>
+          Sign out
+        </button>
+      </section>
+    </main>
   );
 }
 
