@@ -92,11 +92,11 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
       <div className="admin-theme mx-auto w-full max-w-[1240px]">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="m-0 text-xs font-bold tracking-[0.16em] text-white/80 uppercase">LinguaMatch safety</p>
+            <p className="m-0 text-xs font-bold tracking-[0.16em] text-white uppercase">LinguaMatch safety</p>
             <h1 className="font-display mt-2 text-[clamp(30px,4vw,42px)] leading-tight font-bold tracking-[-0.02em]">
               Admin dashboard
             </h1>
-            <p className="mt-2 text-sm text-white/85">
+            <p className="mt-2 text-sm text-white">
               Signed in as <span className="font-semibold">{USER_ROLE_LABELS[role]}</span>
             </p>
           </div>
@@ -116,7 +116,7 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
                 "rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold transition-colors",
                 tab === t.id
                   ? "border-brand-partner bg-brand-partner text-ink"
-                  : "border-transparent text-white/85 hover:bg-white/10 hover:text-white",
+                  : "border-transparent text-white hover:bg-white/10 hover:text-white",
               )}
             >
               {t.label}
@@ -144,7 +144,7 @@ function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ cl
         </div>
         <div>
           <div className="text-2xl font-bold tabular-nums">{value}</div>
-          <div className="text-dim text-xs">{label}</div>
+          <div className="text-brand-you-deep text-xs font-medium">{label}</div>
         </div>
       </CardContent>
     </Card>
@@ -185,7 +185,7 @@ function OverviewTab() {
         </CardHeader>
         <CardContent>
           {recent.length === 0 ? (
-            <p className="text-dim text-sm">The queue is clear. 🎉</p>
+            <p className="text-brand-you-deep text-sm">The queue is clear. 🎉</p>
           ) : (
             <ul className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-paper">
               {recent.map((r) => (
@@ -193,7 +193,7 @@ function OverviewTab() {
                   <span>
                     <span className="font-medium">{REASON_LABELS.get(r.reason)}</span> — {r.reporter.username} → {r.reported.username}
                   </span>
-                  <span className="text-dim text-xs">{fmt(r.createdAt)}</span>
+                  <span className="text-brand-you-deep text-xs">{fmt(r.createdAt)}</span>
                 </li>
               ))}
             </ul>
