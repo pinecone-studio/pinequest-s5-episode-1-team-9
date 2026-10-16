@@ -20,6 +20,7 @@ import { BlockDialog, ReportDialog } from "@/components/room/safety-dialogs";
 import { VideoTile } from "@/components/room/video-tile";
 import { LiveControls } from "@/components/stage/live-controls";
 import { StageHeader } from "@/components/stage/stage-header";
+import { LiveTranscript, type LiveTranscriptEntry } from "@/components/room/live-transcript";
 import { EmojiReactions } from "@/components/xp/emoji-reactions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -65,6 +66,8 @@ export function LiveCall({
   const [topicError, setTopicError] = useState<string | null>(null);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [ended, setEnded] = useState<{ reason: RoomEndReason } | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [transcriptEntries, setTranscriptEntries] = useState<LiveTranscriptEntry[]>([]);
   const [dialog, setDialog] = useState<null | "report" | "block">(null);
   const [now, setNow] = useState(Date.now());
   const roleplay = useRoleplay(socket, roomId, Boolean(info) && !ended);
@@ -72,6 +75,7 @@ export function LiveCall({
   const myAction = useRef<null | "ended" | "next" | "moderation">(null);
   const joined = useRef(false);
   const mounted = useRef(false);
+  const transcriptSequence = useRef(0);
   const floatLayer = useRef<HTMLDivElement>(null);
   const startRtc = rtc.start;
 
@@ -159,15 +163,36 @@ export function LiveCall({
 
   const consent = Boolean(user?.privacy.transcriptionConsent);
   const speechLocale = getTargetLanguage(info?.targetLanguage ?? "")?.speechLocale ?? "en-US";
+  const hasAudioTrack = Boolean(media.stream?.getAudioTracks().some((track) => track.readyState === "live"));
   const onSegment = useCallback(
-    (s: RecognizedSegment) => socket?.emit("transcript:segment", { roomId, ...s }),
+    (segment: RecognizedSegment) => {
+      setTranscriptEntries((entries) => [
+        ...entries,
+        { id: `you-${transcriptSequence.current++}`, speaker: "you", text: segment.text },
+      ]);
+      socket?.emit("transcript:segment", { roomId, ...segment });
+    },
     [socket, roomId],
   );
   const speech = useSpeechRecognition({
     locale: speechLocale,
-    enabled: consent && media.micOn && Boolean(info) && !ended,
+    enabled: consent && media.micOn && hasAudioTrack && Boolean(info) && !ended && !leaving,
     onSegment,
   });
+  useEffect(() => {
+    if (!socket || !info || ended || leaving) return;
+    const onTranscript = (segment: { roomId: string; text: string }) => {
+      if (segment.roomId !== roomId) return;
+      setTranscriptEntries((entries) => [
+        ...entries,
+        { id: `partner-${transcriptSequence.current++}`, speaker: "partner", text: segment.text },
+      ]);
+    };
+    socket.on("transcript:live", onTranscript);
+    return () => {
+      socket.off("transcript:live", onTranscript);
+    };
+  }, [socket, roomId, info, ended, leaving]);
   const micMs = useMicActivity(media.stream, Boolean(info) && !ended && speech.status !== "listening");
   const talk = useTalkBalance({
     socket,
@@ -194,6 +219,7 @@ export function LiveCall({
 
   const leave = (reason: "ended" | "next") => {
     myAction.current = reason;
+    setLeaving(true);
     socket?.emit("room:leave", { roomId, reason });
   };
   const afterModeration = () => {
@@ -290,6 +316,17 @@ export function LiveCall({
           roleplay={roleplay}
           talk={talk}
           partnerName={partnerName}
+          transcript={
+            <LiveTranscript
+              entries={transcriptEntries}
+              interim={speech.interim}
+              status={speech.status}
+              consent={consent}
+              hasAudioTrack={hasAudioTrack}
+              micOn={media.micOn}
+              partnerName={partnerName}
+            />
+          }
         />
       </main>
 

@@ -180,7 +180,7 @@ export default function SettingsPage() {
             <ToggleRow
               id="transcription"
               label="Transcribe my speech for AI feedback"
-              description="Your browser converts only your own speech to text (in Chrome/Edge via the browser vendor's speech service). The text goes to our server and AI provider to build your report. Applies from your next conversation."
+              description="When supported, your browser converts only your own speech to text (in Chrome/Edge via the browser vendor's speech service). Finalized text is shared with your partner in the live transcript and sent to our server and AI provider to build your report. Applies from your next conversation."
               checked={user.privacy.transcriptionConsent}
               onChange={(v) => save(() => api.updateSettings({ privacy: { transcriptionConsent: v } }))}
             />
