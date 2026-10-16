@@ -36,6 +36,11 @@
   --border: oklch(0.91 0.01 270);
   --input: oklch(0.89 0.01 270);
   --ring: oklch(0.52 0.2 275);
+  --app-admin: #191970;
+  --app-admin-foreground: #FFFFFF;
+  --app-admin-muted: #C9D5FF;
+  --app-admin-soft: rgb(255 255 255 / 10%);
+  --app-admin-line: rgb(255 255 255 / 28%);
 }
 
 .dark {
@@ -79,6 +84,10 @@
   --border: #E1E4F0;
   --input: #E1E4F0;
   --ring: #3B63E8;
+  --destructive: #B3261E;
+  --destructive-foreground: #FFFFFF;
+  --success: #145F3B;
+  --warning: #85530A;
 }
 
 .light {
@@ -191,6 +200,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-admin: var(--app-admin);
+  --color-admin-foreground: var(--app-admin-foreground);
+  --color-admin-muted: var(--app-admin-muted);
+  --color-admin-soft: var(--app-admin-soft);
+  --color-admin-line: var(--app-admin-line);
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 3px);
   --radius-lg: var(--radius);

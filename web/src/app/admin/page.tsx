@@ -54,8 +54,8 @@ export default function AdminPage() {
   if (user.role === "user") {
     return (
       <PageShell
-        className="min-h-[calc(100dvh-4rem)] max-w-none bg-[#191970] text-white"
-        headerClassName="border-[#191970] bg-[#191970] text-white [&_a]:text-white [&_button]:text-white [&_a>span:first-child]:bg-white [&_a>span:first-child]:text-[#191970]"
+        className="min-h-[calc(100dvh-4rem)] max-w-none bg-admin text-admin-foreground"
+        headerClassName="border-admin bg-admin text-admin-foreground [&_a]:text-admin-foreground [&_button]:text-admin-foreground [&_a>span:first-child]:bg-admin-foreground [&_a>span:first-child]:text-admin"
       >
         <div className="admin-theme mx-auto w-full max-w-[1240px]">
           <Card className="rounded-3xl border-hairline bg-white">
@@ -86,17 +86,17 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
 
   return (
     <PageShell
-      className="min-h-[calc(100dvh-4rem)] max-w-none bg-[#191970] text-white"
-      headerClassName="border-[#191970] bg-[#191970] text-white [&_a]:text-white [&_button]:text-white [&_a>span:first-child]:bg-white [&_a>span:first-child]:text-[#191970]"
+      className="min-h-[calc(100dvh-4rem)] max-w-none bg-admin text-admin-foreground"
+      headerClassName="border-admin bg-admin text-admin-foreground [&_a]:text-admin-foreground [&_button]:text-admin-foreground [&_a>span:first-child]:bg-admin-foreground [&_a>span:first-child]:text-admin"
     >
       <div className="admin-theme mx-auto w-full max-w-[1240px]">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="m-0 text-xs font-bold tracking-[0.16em] text-white uppercase">LinguaMatch safety</p>
+            <p className="text-admin-muted m-0 text-xs font-bold tracking-[0.16em] uppercase">LinguaMatch safety</p>
             <h1 className="font-display mt-2 text-[clamp(30px,4vw,42px)] leading-tight font-bold tracking-[-0.02em]">
               Admin dashboard
             </h1>
-            <p className="mt-2 text-sm text-white">
+            <p className="text-admin-foreground mt-2 text-sm">
               Signed in as <span className="font-semibold">{USER_ROLE_LABELS[role]}</span>
             </p>
           </div>
@@ -105,7 +105,7 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
           </Badge>
         </div>
 
-        <nav aria-label="Admin sections" className="mt-8 flex flex-wrap gap-2 border-b border-white/25">
+        <nav aria-label="Admin sections" className="border-admin-line mt-8 flex flex-wrap gap-2 border-b">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -116,7 +116,7 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
                 "rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold transition-colors",
                 tab === t.id
                   ? "border-brand-partner bg-brand-partner text-ink"
-                  : "border-transparent text-white hover:bg-white/10 hover:text-white",
+                  : "border-transparent bg-admin-soft text-admin-foreground hover:bg-admin-line",
               )}
             >
               {t.label}
