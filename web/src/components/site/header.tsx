@@ -3,6 +3,7 @@
 import { LogOut, Settings, ShieldCheck, User, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -84,6 +85,7 @@ export function SiteHeader({
               )}
             </>
           )}
+          <ThemeToggle />
         </nav>
       </div>
     </header>
