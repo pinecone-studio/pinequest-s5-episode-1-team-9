@@ -14,7 +14,6 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatPanel } from "@/components/room/chat-panel";
 import { CoachPanel } from "@/components/room/coach-panel";
-import { LiveCaptions } from "@/components/room/live-captions";
 import { BlockDialog, ReportDialog } from "@/components/room/safety-dialogs";
 import { VideoTile } from "@/components/room/video-tile";
 import { LiveControls } from "@/components/stage/live-controls";
@@ -344,8 +343,6 @@ export function LiveCall({
               showVideo={media.camOn}
             />
           </div>
-
-          <LiveCaptions speech={speech} consent={consent} />
 
           {socket && user && (
             <EmojiReactions socket={socket} roomId={roomId} myUserId={user.id} layer={floatLayer} />
