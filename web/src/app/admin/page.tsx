@@ -54,8 +54,8 @@ export default function AdminPage() {
   if (user.role === "user") {
     return (
       <PageShell
-        className="min-h-[calc(100dvh-4rem)] max-w-none bg-paper text-ink"
-        headerClassName="bg-paper/80 border-hairline"
+        className="min-h-[calc(100dvh-4rem)] max-w-none bg-brand-you-tint text-ink"
+        headerClassName="bg-brand-you-tint/90 border-hairline"
       >
         <div className="admin-theme mx-auto w-full max-w-[1240px]">
           <Card className="rounded-3xl border-hairline bg-white">
@@ -86,8 +86,8 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
 
   return (
     <PageShell
-      className="min-h-[calc(100dvh-4rem)] max-w-none bg-paper text-ink"
-      headerClassName="bg-paper/80 border-hairline"
+      className="min-h-[calc(100dvh-4rem)] max-w-none bg-brand-you-tint text-ink"
+      headerClassName="bg-brand-you-tint/90 border-hairline"
     >
       <div className="admin-theme mx-auto w-full max-w-[1240px]">
         <div className="flex flex-wrap items-end justify-between gap-4">
