@@ -49,6 +49,27 @@
   --ring: oklch(0.68 0.17 275);
 }
 
+.dark .admin-theme,
+.admin-theme {
+  --background: #F6F7FB;
+  --foreground: #1C1A45;
+  --card: #FFFFFF;
+  --card-foreground: #1C1A45;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1A45;
+  --primary: #3B63E8;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E8EDFD;
+  --secondary-foreground: #2647B8;
+  --muted: #E8EDFD;
+  --muted-foreground: #4E537A;
+  --accent: #E8EDFD;
+  --accent-foreground: #2647B8;
+  --border: #E1E4F0;
+  --input: #E1E4F0;
+  --ring: #3B63E8;
+}
+
 @theme inline {
   --font-sans: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-unbounded), ui-sans-serif, system-ui, sans-serif;

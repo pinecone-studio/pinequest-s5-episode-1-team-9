@@ -53,15 +53,17 @@ export default function AdminPage() {
   if (!user) return <FullPageSpinner />;
   if (user.role === "user") {
     return (
-      <PageShell className="max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>No access</CardTitle>
-          </CardHeader>
-          <CardContent className="text-muted-foreground text-sm">
-            This area is for LinguaMatch staff. If you think this is a mistake, contact an administrator.
-          </CardContent>
-        </Card>
+      <PageShell className="min-h-[calc(100dvh-4rem)] max-w-none bg-paper text-ink">
+        <div className="admin-theme mx-auto w-full max-w-[1240px]">
+          <Card className="rounded-3xl border-hairline bg-white">
+            <CardHeader>
+              <CardTitle>No access</CardTitle>
+            </CardHeader>
+            <CardContent className="text-muted-foreground text-sm">
+              This area is for LinguaMatch staff. If you think this is a mistake, contact an administrator.
+            </CardContent>
+          </Card>
+        </div>
       </PageShell>
     );
   }
@@ -80,40 +82,48 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
   ];
 
   return (
-    <PageShell className="max-w-6xl">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Admin</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Signed in as <span className="font-medium">{USER_ROLE_LABELS[role]}</span>
-          </p>
+    <PageShell className="min-h-[calc(100dvh-4rem)] max-w-none bg-paper text-ink">
+      <div className="admin-theme mx-auto w-full max-w-[1240px]">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-brand-you-deep m-0 text-xs font-bold tracking-[0.16em] uppercase">LinguaMatch safety</p>
+            <h1 className="font-display mt-2 text-[clamp(30px,4vw,42px)] leading-tight font-bold tracking-[-0.02em]">
+              Admin dashboard
+            </h1>
+            <p className="text-dim mt-2 text-sm">
+              Signed in as <span className="font-semibold">{USER_ROLE_LABELS[role]}</span>
+            </p>
+          </div>
+          <Badge variant="accent" className="rounded-full px-3 py-1.5">
+            <ShieldCheck /> {USER_ROLE_LABELS[role]}
+          </Badge>
         </div>
-        <Badge variant="accent">
-          <ShieldCheck /> {USER_ROLE_LABELS[role]}
-        </Badge>
-      </div>
 
-      <nav className="mt-6 flex flex-wrap gap-1 border-b">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-              tab === t.id ? "border-primary text-primary" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+        <nav aria-label="Admin sections" className="mt-8 flex flex-wrap gap-2 border-b border-hairline">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              aria-current={tab === t.id ? "page" : undefined}
+              className={cn(
+                "rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold transition-colors",
+                tab === t.id
+                  ? "border-brand-you bg-brand-you-tint text-brand-you-deep"
+                  : "border-transparent text-dim hover:bg-white hover:text-ink",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
 
-      <div className="mt-6">
-        {tab === "overview" && <OverviewTab />}
-        {tab === "reports" && <ReportsTab />}
-        {tab === "users" && <UsersTab isAdmin={isAdmin} />}
-        {tab === "audit" && isAdmin && <AuditTab />}
+        <div className="mt-7">
+          {tab === "overview" && <OverviewTab />}
+          {tab === "reports" && <ReportsTab />}
+          {tab === "users" && <UsersTab isAdmin={isAdmin} />}
+          {tab === "audit" && isAdmin && <AuditTab />}
+        </div>
       </div>
     </PageShell>
   );
@@ -121,14 +131,14 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
 
 function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
-    <Card className="py-5">
+    <Card className="rounded-3xl border-hairline bg-white py-5 shadow-none">
       <CardContent className="flex items-center gap-4">
-        <div className="bg-primary/10 text-primary grid size-10 place-items-center rounded-lg">
+        <div className="bg-brand-you-tint text-brand-you-deep grid size-11 place-items-center rounded-xl">
           <Icon className="size-5" />
         </div>
         <div>
-          <div className="text-2xl font-semibold tabular-nums">{value}</div>
-          <div className="text-muted-foreground text-xs">{label}</div>
+          <div className="text-2xl font-bold tabular-nums">{value}</div>
+          <div className="text-dim text-xs">{label}</div>
         </div>
       </CardContent>
     </Card>
@@ -163,21 +173,21 @@ function OverviewTab() {
         <StatCard icon={UserPlus} label="New users (24h)" value={String(stats.usersLast24h)} />
       </div>
 
-      <Card>
+      <Card className="rounded-3xl border-hairline bg-white shadow-none">
         <CardHeader>
-          <CardTitle className="text-lg">Newest open reports</CardTitle>
+          <CardTitle className="font-display text-lg">Newest open reports</CardTitle>
         </CardHeader>
         <CardContent>
           {recent.length === 0 ? (
-            <p className="text-muted-foreground text-sm">The queue is clear. 🎉</p>
+            <p className="text-dim text-sm">The queue is clear. 🎉</p>
           ) : (
-            <ul className="divide-y rounded-lg border">
+            <ul className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-paper">
               {recent.map((r) => (
-                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                   <span>
                     <span className="font-medium">{REASON_LABELS.get(r.reason)}</span> — {r.reporter.username} → {r.reported.username}
                   </span>
-                  <span className="text-muted-foreground text-xs">{fmt(r.createdAt)}</span>
+                  <span className="text-dim text-xs">{fmt(r.createdAt)}</span>
                 </li>
               ))}
             </ul>
@@ -231,9 +241,9 @@ function ReportsTab() {
       {reports.length === 0 ? (
         <p className="text-muted-foreground text-sm">Nothing here.</p>
       ) : (
-        <ul className="divide-y rounded-xl border">
+        <ul className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-white">
           {reports.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+            <li key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-4 text-sm transition-colors hover:bg-paper">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{REASON_LABELS.get(r.reason)}</span>
@@ -436,9 +446,9 @@ function UsersTab({ isAdmin }: { isAdmin: boolean }) {
       {loading && <p className="text-muted-foreground text-sm">Searching…</p>}
       {!loading && users.length === 0 && <p className="text-muted-foreground text-sm">No users found.</p>}
 
-      <ul className="divide-y rounded-xl border">
+      <ul className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-white">
         {users.map((u) => (
-          <li key={u.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+          <li key={u.id} className="flex flex-wrap items-center gap-3 px-4 py-4 text-sm transition-colors hover:bg-paper">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{u.deletedAt ? <span className="text-muted-foreground">{u.username} (deleted)</span> : u.username}</span>
@@ -627,9 +637,9 @@ function AuditTab() {
           {actions.length > 0 ? "Latest staff activity" : "No staff activity yet."}
         </span>
       </div>
-      <ul className="divide-y rounded-xl border">
+      <ul className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-white">
         {actions.map((a) => (
-          <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+          <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-4 text-sm transition-colors hover:bg-paper">
             <div className="min-w-0 flex-1">
               <div className="font-medium">{ACTION_LABELS[a.action] ?? a.action}</div>
               <div className="text-muted-foreground mt-0.5">
