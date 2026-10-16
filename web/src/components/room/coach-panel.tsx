@@ -2,6 +2,7 @@
 
 import type { Topic } from "@linguamatch/shared";
 import { Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { RoleplayCard } from "@/components/room/roleplay-card";
 import type { Roleplay } from "@/hooks/useRoleplay";
 import type { TalkBalanceState } from "@/hooks/useTalkBalance";
@@ -14,6 +15,7 @@ export function CoachPanel({
   roleplay,
   talk,
   partnerName,
+  transcript,
 }: {
   topic: Topic | null;
   loading: boolean;
@@ -22,6 +24,7 @@ export function CoachPanel({
   roleplay: Roleplay;
   talk: TalkBalanceState;
   partnerName: string;
+  transcript: ReactNode;
 }) {
   const card = roleplay.card;
 
@@ -92,6 +95,8 @@ export function CoachPanel({
         )}
       </div>
       {roleplay.error && <p className="text-brand-partner-text m-0 text-sm">{roleplay.error}</p>}
+
+      {transcript}
 
       <div className="flex flex-col gap-2">
         <span className="text-dim-dark text-sm">Who&apos;s talking</span>

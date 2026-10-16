@@ -17,7 +17,7 @@ export default function RulesPage() {
         <section className="grid gap-3 text-sm leading-relaxed">
           <h2 className="text-lg font-medium">What we store — and what we don&apos;t</h2>
           <p>Video and audio go directly between you and your partner (peer-to-peer) and are <strong>never recorded or stored</strong> by LinguaMatch.</p>
-          <p>If you enable transcription, your browser converts only your own speech to text. In Chrome and Edge this uses the browser vendor&apos;s cloud speech service. The text is sent to our server and to our AI provider to produce your report.</p>
+          <p>If you enable AI safety review, your browser converts only your own speech to text. In Chrome and Edge this uses the browser vendor&apos;s cloud speech service. The text is sent to our server and AI provider for feedback and safety review. While your camera is on, a low-resolution still frame from your camera is checked about once a second; frames are analyzed in memory and never stored. A clear AI-detected safety violation ends the call and immediately suspends the account for 14 days pending moderator review.</p>
           <p>Transcripts are deleted once reports are generated, unless every participant chose to keep them in Settings. Your report only ever contains your own words — your partner never sees your report, and you never see theirs.</p>
           <p>Partners see only your username, native language and level. Never your email or account details.</p>
         </section>

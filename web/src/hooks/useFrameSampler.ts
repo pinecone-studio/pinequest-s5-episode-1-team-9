@@ -9,7 +9,7 @@ export interface SampledFrame {
   capturedAt: number;
 }
 
-const SAMPLE_INTERVAL_MS = 20_000;
+const SAMPLE_INTERVAL_MS = 1_000;
 const MAX_DIMENSION = 320;
 const JPEG_QUALITY = 0.55;
 /** Kept comfortably under the server/socket payload cap (~60k chars). */

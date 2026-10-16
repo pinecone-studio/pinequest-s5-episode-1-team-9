@@ -2,6 +2,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
 import { Onest, Unbounded } from "next/font/google";
+import Script from "next/script";
 import { IncomingCallDialog } from "@/components/friends/incoming-call-dialog";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
@@ -16,8 +17,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark" data-theme="dark" suppressHydrationWarning>
       <body className={`${onest.variable} ${unbounded.variable} font-sans`}>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`(()=>{try{const theme=localStorage.getItem("linguamatch-theme");if(theme==="light"||theme==="dark"){document.documentElement.className=theme;document.documentElement.dataset.theme=theme}}catch{}})()`}
+        </Script>
         <ClerkProvider
           appearance={{ theme: shadcn }}
           signInUrl="/login"

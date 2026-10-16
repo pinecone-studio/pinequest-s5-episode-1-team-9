@@ -26,7 +26,7 @@ const JOIN_TIMEOUT_MS = 45_000;
 const TOPIC_COOLDOWN_MS = 2_000;
 const MIN_SEGMENT_INTERVAL_MS = 250;
 const MAX_SEGMENTS_PER_SESSION = 3000;
-const MIN_FRAME_INTERVAL_MS = 5_000;
+const MIN_FRAME_INTERVAL_MS = 1_000;
 const MAX_FRAME_CHARS = 60_000;
 const FRAME_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const OPEN_STATUSES = ["pending", "active"] as const;
@@ -309,6 +309,15 @@ export async function addTranscriptSegment(socket: AppSocket, input: TranscriptS
   });
   // Feed the real-time AI moderation window (in memory; the sweeper scans it periodically).
   recordForModeration(session.id, userId, segment.text, segment.startedAt);
+  const partnerSocketId = [...state.sockets].find(([participantId]) => participantId !== userId)?.[1];
+  if (partnerSocketId) {
+    getIO().to(partnerSocketId).emit("transcript:live", {
+      roomId: input.roomId,
+      text: segment.text,
+      startedAt: segment.startedAt.getTime(),
+      endedAt: segment.endedAt.getTime(),
+    });
+  }
 }
 
 /**

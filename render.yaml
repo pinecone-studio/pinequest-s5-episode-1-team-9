@@ -29,6 +29,10 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
+      - key: AI_MODERATION_INTERVAL_SECONDS
+        value: "2"
+      - key: AI_MODERATION_SUSPEND_DAYS
+        value: "14"
       # Exact web origin(s), comma-separated. Add Vercel preview URLs here if you use them.
       - key: CLIENT_ORIGIN
         value: https://linguamatch-taupe.vercel.app

@@ -151,6 +151,7 @@ export function useSpeechRecognition(opts: {
         setStatus("denied");
       } else if (e.error !== "no-speech" && e.error !== "aborted") {
         console.warn("[speech] recognition error:", e.error);
+        setStatus("error");
       }
     };
     // Recognizers stop on their own after silence or ~60s; keep restarting while enabled.

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LogoMark, LogoWord } from "@/components/brand/logo-mark";
+import { ThemeToggle } from "@/components/site/theme-toggle";
 
 export function PaperHeader({ cta = "Start a call" }: { cta?: string }) {
   return (
@@ -23,6 +24,7 @@ export function PaperHeader({ cta = "Start a call" }: { cta?: string }) {
         >
           {cta}
         </Link>
+        <ThemeToggle />
       </nav>
     </header>
   );
