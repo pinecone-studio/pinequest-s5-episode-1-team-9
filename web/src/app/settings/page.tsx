@@ -179,8 +179,8 @@ export default function SettingsPage() {
           <CardContent className="grid gap-5">
             <ToggleRow
               id="transcription"
-              label="Transcribe my speech for AI feedback"
-              description="Your browser converts only your own speech to text (in Chrome/Edge via the browser vendor's speech service). The text goes to our server and AI provider to build your report. Applies from your next conversation."
+              label="Enable AI speech and camera safety review"
+              description="Your browser converts only your own speech to text (in Chrome/Edge via the browser vendor's speech service). While your camera is on, a low-resolution still frame is checked about once a second and never stored. Clear AI-detected violations immediately end the call and trigger a 14-day suspension pending moderator review. Applies from your next conversation."
               checked={user.privacy.transcriptionConsent}
               onChange={(v) => save(() => api.updateSettings({ privacy: { transcriptionConsent: v } }))}
             />

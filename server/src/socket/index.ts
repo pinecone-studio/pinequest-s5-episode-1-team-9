@@ -16,6 +16,7 @@ import { relayBalance } from "../services/balance/balanceService";
 import { assist, creditCaption, refreshSuggestions, sendMessage, syncChat } from "../services/chat/chatService";
 import { endRoleplay, startRoleplay, syncRoleplay } from "../services/roleplay/roleplayService";
 import { findOrCreateUser } from "../models/User";
+import { findActiveBan } from "../services/moderation/moderationService";
 import {
   addTranscriptSegment,
   addVideoFrame,
@@ -72,6 +73,10 @@ export function createSocketServer(httpServer: HttpServer): IO {
       if (user.deletedAt) {
         logAuthFailure("socket", "deleted_user", { origin });
         return reject("deleted_user");
+      }
+      if (await findActiveBan(user.id)) {
+        logAuthFailure("socket", "banned_user", { origin });
+        return reject("banned_user");
       }
       socket.data.userId = user.id;
       next();

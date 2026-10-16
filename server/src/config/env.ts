@@ -47,7 +47,7 @@ const EnvSchema = z.object({
     .default("true")
     .transform((v) => v === "true" || v === "1"),
   /** How often each active conversation's new transcript is scanned, in seconds. */
-  AI_MODERATION_INTERVAL_SECONDS: z.coerce.number().int().min(5).default(30),
+  AI_MODERATION_INTERVAL_SECONDS: z.coerce.number().int().min(1).default(2),
   /** Minimum new utterances since the last scan before a conversation is checked. */
   AI_MODERATION_MIN_SEGMENTS: z.coerce.number().int().min(1).default(4),
   /** Suspension length applied automatically when AI flags a violation. */

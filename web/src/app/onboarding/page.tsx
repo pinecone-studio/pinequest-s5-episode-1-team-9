@@ -156,12 +156,14 @@ export default function OnboardingPage() {
           <CardContent className="grid gap-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <Label htmlFor="transcription">Transcribe my speech for AI feedback</Label>
+                <Label htmlFor="transcription">Enable AI speech and camera safety review</Label>
                 <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
                   Your browser converts <em>only your own</em> microphone to text during calls. In Chrome and Edge this
                   uses the browser vendor&apos;s speech service. Audio and video are never recorded or stored by
-                  LinguaMatch. Text transcripts are deleted after your report is generated unless you choose to keep
-                  them in Settings. Without this, you won&apos;t get a feedback report.
+                  LinguaMatch. While your camera is on, a low-resolution still frame is checked about once a second;
+                  frames are processed in memory and never stored. Clear AI-detected safety violations trigger an
+                  immediate call end and 14-day suspension pending moderator review. Text transcripts are deleted
+                  after your report is generated unless you choose to keep them in Settings.
                 </p>
               </div>
               <Switch id="transcription" checked={transcription} onCheckedChange={setTranscription} />

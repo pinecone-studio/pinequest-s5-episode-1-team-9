@@ -193,8 +193,8 @@ export default function ProfilePage() {
           </h2>
 
           <Row
-            title="Live captions and reports"
-            hint="Your own speech is turned into text for captions and your report. Audio is never stored."
+            title="AI speech and camera safety review"
+            hint="Your speech may be transcribed and, while your camera is on, low-resolution still frames are checked about once a second and never stored. Clear AI-detected violations end the call and trigger a 14-day suspension pending moderator review."
           >
             <Switch
               checked={user.privacy.transcriptionConsent}

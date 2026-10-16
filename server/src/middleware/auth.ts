@@ -1,6 +1,7 @@
 import { getAuth } from "@clerk/express";
 import type { NextFunction, Request, Response } from "express";
 import { findOrCreateUser, type User } from "../models/User";
+import { findActiveBan } from "../services/moderation/moderationService";
 import { logAuthFailure } from "../utils/auth";
 import { HttpError } from "../utils/http";
 
@@ -24,6 +25,11 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   if (user.deletedAt) {
     logAuthFailure("http", "deleted_user", { path });
     throw new HttpError(401, "This account was deleted");
+  }
+  const ban = await findActiveBan(user.id);
+  if (ban) {
+    const expiry = ban.endsAt ? ` until ${ban.endsAt.toISOString()}` : " permanently";
+    throw new HttpError(403, `This account is suspended${expiry}. Reason: ${ban.reason}`);
   }
   req.user = user;
   next();

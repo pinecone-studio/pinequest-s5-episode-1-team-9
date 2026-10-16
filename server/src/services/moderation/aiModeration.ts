@@ -4,6 +4,8 @@ import { bans, reports, users } from "../../db/schema";
 import { findSession, type Session } from "../../models/Session";
 import { getAI, isAIConfigured, type ModerationFinding, type ModerationFrame, type ModerationSeverity, type ModerationUtterance } from "../ai";
 import { endSession } from "../rooms/roomService";
+import { matchmaker } from "../../socket";
+import { getIO, userRoom } from "../../socket/io";
 import {
   clearModerationBuffer,
   drainFrameBuffer,
@@ -23,6 +25,7 @@ import { findActiveBan } from "./moderationService";
  */
 export const SYSTEM_MODERATOR_ID = "system_moderation";
 const SYSTEM_MODERATOR_NAME = "LinguaMatch_AI";
+const sessionsBeingModerated = new Set<string>();
 
 /** Creates the moderation system account if it is missing. Safe to call on every startup. */
 export async function ensureSystemModerator(): Promise<void> {
@@ -41,11 +44,14 @@ export async function runAIModerationSweep(): Promise<void> {
   for (const sessionId of sessionsWithModerationBacklog()) {
     const hasSpeech = moderationBacklog(sessionId) >= env.AI_MODERATION_MIN_SEGMENTS;
     const hasFrames = env.AI_MODERATION_VIDEO_ENABLED && frameBacklog(sessionId) >= env.AI_MODERATION_VIDEO_MIN_FRAMES;
-    if (!hasSpeech && !hasFrames) continue;
+    if ((!hasSpeech && !hasFrames) || sessionsBeingModerated.has(sessionId)) continue;
+    sessionsBeingModerated.add(sessionId);
     try {
       await moderateSession(sessionId);
     } catch (err) {
       console.error(`[moderation] AI scan failed for session ${sessionId}:`, err);
+    } finally {
+      sessionsBeingModerated.delete(sessionId);
     }
   }
 }
@@ -97,7 +103,9 @@ async function moderateSession(sessionId: string) {
 
   if (offenders.size > 0) {
     console.warn(`[moderation] AI flagged ${offenders.size} participant(s) in session ${sessionId}; ending call`);
+    await Promise.all([...offenders].map((userId) => matchmaker.leave(userId)));
     await endSession(sessionId, null, "reported");
+    for (const userId of offenders) getIO().in(userRoom(userId)).disconnectSockets(true);
   }
 }
 
