@@ -16,12 +16,18 @@ export function Logo({ className }: { className?: string }) {
   );
 }
 
-export function SiteHeader({ showStartAction = true }: { showStartAction?: boolean }) {
+export function SiteHeader({
+  showStartAction = true,
+  className,
+}: {
+  showStartAction?: boolean;
+  className?: string;
+}) {
   const { user, logout } = useAuth();
   const router = useRouter();
 
   return (
-    <header className="bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
+    <header className={cn("bg-background/80 sticky top-0 z-40 border-b backdrop-blur", className)}>
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Logo />
         <nav className="flex items-center gap-1 sm:gap-2">
@@ -84,10 +90,18 @@ export function SiteHeader({ showStartAction = true }: { showStartAction?: boole
   );
 }
 
-export function PageShell({ children, className }: { children: React.ReactNode; className?: string }) {
+export function PageShell({
+  children,
+  className,
+  headerClassName,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  headerClassName?: string;
+}) {
   return (
     <>
-      <SiteHeader />
+      <SiteHeader className={headerClassName} />
       <main className={cn("mx-auto w-full max-w-6xl px-4 py-10 sm:px-6", className)}>{children}</main>
     </>
   );

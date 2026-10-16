@@ -53,7 +53,10 @@ export default function AdminPage() {
   if (!user) return <FullPageSpinner />;
   if (user.role === "user") {
     return (
-      <PageShell className="min-h-[calc(100dvh-4rem)] max-w-none bg-paper text-ink">
+      <PageShell
+        className="min-h-[calc(100dvh-4rem)] max-w-none bg-paper text-ink"
+        headerClassName="bg-paper/80 border-hairline"
+      >
         <div className="admin-theme mx-auto w-full max-w-[1240px]">
           <Card className="rounded-3xl border-hairline bg-white">
             <CardHeader>
@@ -82,7 +85,10 @@ function AdminShell({ role, isAdmin }: { role: "moderator" | "admin"; isAdmin: b
   ];
 
   return (
-    <PageShell className="min-h-[calc(100dvh-4rem)] max-w-none bg-paper text-ink">
+    <PageShell
+      className="min-h-[calc(100dvh-4rem)] max-w-none bg-paper text-ink"
+      headerClassName="bg-paper/80 border-hairline"
+    >
       <div className="admin-theme mx-auto w-full max-w-[1240px]">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
