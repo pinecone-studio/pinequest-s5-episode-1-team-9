@@ -196,7 +196,7 @@ function toQuery(params: Record<string, string | number | undefined>): string {
 
 export const adminApi = {
   stats: () => request<{ stats: AdminStatsDTO }>("/admin/stats"),
-  reports: (params: { status?: string; limit?: number; offset?: number } = {}) =>
+  reports: (params: { status?: string; aiFlag?: "true" | "false"; limit?: number; offset?: number } = {}) =>
     request<{ reports: AdminReportDTO[]; total: number }>(`/admin/reports?${toQuery(params)}`),
   reviewReport: (id: number, body: { action: "dismiss" | "suspend"; days?: number | null; reason: string }) =>
     request<{ report: AdminReportDTO; ok: true }>(`/admin/reports/${id}/review`, { body }),

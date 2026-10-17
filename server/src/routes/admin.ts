@@ -50,6 +50,11 @@ const Pagination = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+const ReportsQuery = Pagination.extend({
+  status: z.enum(["open", "under_review", "actioned", "dismissed"]).optional(),
+  aiFlag: z.enum(["true", "false"]).optional(),
+});
+
 function toAdminBanDTO(ban: typeof bans.$inferSelect | null | undefined): AdminBanDTO | null {
   if (!ban) return null;
   return {
@@ -139,11 +144,12 @@ adminRouter.get("/stats", async (_req, res) => {
 // ─── Reports ───────────────────────────────────────────────────────────────
 
 adminRouter.get("/reports", async (req, res) => {
-  const { limit, offset } = parseBody(Pagination, req.query);
-  const status = z.enum(["open", "under_review", "actioned", "dismissed"]).safeParse(req.query.status).success
-    ? (req.query.status as string)
-    : null;
-  const where = status ? eq(reports.status, status as never) : inArray(reports.status, ["open", "under_review"]);
+  const { limit, offset, status, aiFlag } = parseBody(ReportsQuery, req.query);
+  const conditions = [
+    status ? eq(reports.status, status) : inArray(reports.status, ["open", "under_review"]),
+  ];
+  if (aiFlag !== undefined) conditions.push(eq(reports.aiFlag, aiFlag === "true"));
+  const where = and(...conditions);
 
   const [rows, total] = await Promise.all([
     db
