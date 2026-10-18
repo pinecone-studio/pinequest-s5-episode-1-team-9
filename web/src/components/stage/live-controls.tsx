@@ -25,7 +25,7 @@ export function LiveControls({
         <button
           type="button"
           onClick={onNext}
-          className="text-ink flex min-h-16 items-center justify-center gap-2.5 rounded-2xl border-0 bg-white text-[19px] font-extrabold"
+          className="bg-brand-partner text-ink flex min-h-16 items-center justify-center gap-2.5 rounded-[16px] border-0 text-[17px] font-bold shadow-sm transition hover:brightness-105 hover:shadow-md active:scale-[0.99]"
         >
           <SkipForward aria-hidden="true" className="size-5.5" />
           Next partner
@@ -34,7 +34,7 @@ export function LiveControls({
         <button
           type="button"
           onClick={onStop}
-          className="flex min-h-16 items-center justify-center gap-2.5 rounded-2xl border border-white/22 bg-transparent text-[19px] font-extrabold text-white"
+          className="bg-card/70 text-foreground flex min-h-16 items-center justify-center gap-2.5 rounded-[16px] border border-border text-[17px] font-semibold transition-colors hover:bg-accent"
         >
           <Square aria-hidden="true" className="size-5 fill-current" />
           Stop
@@ -43,7 +43,7 @@ export function LiveControls({
         <button
           type="button"
           onClick={onReport}
-          className="flex min-h-16 items-center justify-center gap-2.5 rounded-2xl border border-[rgba(255,120,120,0.5)] bg-transparent text-[17px] font-semibold text-[#FFB4B4]"
+          className="text-destructive flex min-h-16 items-center justify-center gap-2.5 rounded-[16px] border border-destructive/35 bg-destructive/5 text-[16px] font-semibold transition-colors hover:bg-destructive/10"
         >
           <Flag aria-hidden="true" className="size-5" />
           Report

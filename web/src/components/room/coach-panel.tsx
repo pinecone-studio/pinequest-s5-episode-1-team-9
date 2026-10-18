@@ -31,7 +31,7 @@ export function CoachPanel({
   return (
     <aside
       aria-label="Coach"
-      className="bg-panel flex min-w-0 max-w-full flex-1 basis-80 flex-col gap-5 rounded-[22px] p-5.5"
+      className="bg-panel flex min-w-0 max-w-full flex-1 basis-80 flex-col gap-5 rounded-[20px] border border-border p-5.5 shadow-lg"
     >
       {card ? (
         <RoleplayCard card={card} />
@@ -44,8 +44,8 @@ export function CoachPanel({
           <span className="text-dim-dark text-sm">Topic</span>
           {topic ? (
             <>
-              <h2 className="font-display m-0 text-[22px] leading-[1.25] font-bold text-white">{topic.title}</h2>
-              <ul className="m-0 flex list-disc flex-col gap-2 pl-4.5 leading-[1.45] text-[#D7DAF2]">
+              <h2 className="font-display m-0 text-[22px] leading-[1.25] font-bold text-foreground">{topic.title}</h2>
+              <ul className="m-0 flex list-disc flex-col gap-2 pl-4.5 leading-[1.5] text-muted-foreground marker:text-brand-partner">
                 {topic.questions.map((q) => (
                   <li key={q}>{q}</li>
                 ))}
@@ -69,7 +69,7 @@ export function CoachPanel({
           <button
             type="button"
             onClick={roleplay.end}
-            className="min-h-11 flex-1 rounded-xl border border-white/20 bg-transparent px-3.5 text-[15px] font-semibold text-white"
+            className="min-h-11 flex-1 rounded-xl border border-border bg-card/40 px-3.5 text-[15px] font-semibold text-foreground transition-colors hover:bg-accent"
           >
             End role-play
           </button>
@@ -79,7 +79,7 @@ export function CoachPanel({
               type="button"
               onClick={onNewTopic}
               disabled={loading}
-              className="min-h-11 rounded-xl border border-white/20 bg-transparent px-3.5 text-[15px] font-semibold text-white disabled:opacity-50"
+              className="min-h-11 rounded-xl border border-border bg-card/40 px-3.5 text-[15px] font-semibold text-foreground transition-colors hover:bg-accent disabled:opacity-50"
             >
               {loading ? "Choosing…" : "New topic"}
             </button>
@@ -106,7 +106,7 @@ export function CoachPanel({
             style={{ width: `${talk.balance.minePct}%` }}
           />
         </div>
-        <div className="flex justify-between text-sm text-[#D7DAF2]">
+        <div className="flex justify-between text-sm text-muted-foreground">
           <span>You {talk.balance.minePct}%</span>
           <span>
             {partnerName} {talk.balance.partnerPct}%

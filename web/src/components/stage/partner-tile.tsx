@@ -6,7 +6,7 @@ import { formatClock } from "@/lib/utils";
 
 export function PartnerIdleTile() {
   return (
-    <div className="bg-stage flex aspect-4/3 flex-col items-center justify-center gap-4.5 rounded-[22px] border-[3px] border-dashed border-[rgba(240,165,50,0.6)] p-6 text-center">
+    <div className="bg-stage flex aspect-[4/3] min-w-0 flex-col items-center justify-center gap-4 rounded-[18px] border-2 border-dashed border-[rgba(255,181,71,0.48)] p-6 text-center shadow-inner">
       <LogoMark scale={2} waiting />
       <span className="font-display max-w-[15em] text-[22px] leading-[1.3] font-bold text-white">
         Your partner appears here
@@ -30,7 +30,7 @@ export function PartnerSearchingTile({
   return (
     <div
       role="status"
-      className="bg-stage border-brand-partner relative flex aspect-4/3 flex-col items-center justify-center gap-4 overflow-hidden rounded-[22px] border-[3px] border-dashed p-6 text-center"
+      className="bg-stage border-brand-partner/70 relative flex aspect-[4/3] min-w-0 flex-col items-center justify-center gap-4 overflow-hidden rounded-[18px] border-2 border-dashed p-6 text-center"
     >
       <div aria-hidden="true" className="relative grid size-24 place-items-center">
         <span className="lm-ring border-brand-partner absolute inset-0 rounded-full border-[3px]" />

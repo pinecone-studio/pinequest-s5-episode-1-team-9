@@ -8,8 +8,8 @@ const FIRST_QUESTIONS = [
 
 export function IdleChat() {
   return (
-    <section aria-label="Chat" className="flex flex-col gap-3.5 border-t border-white/10 pt-3.5">
-      <div className="text-dim-dark flex min-h-24 items-center justify-center rounded-[14px] border border-dashed border-white/18 p-4 text-center leading-[1.5]">
+    <section aria-label="Chat" className="flex flex-col gap-3.5 border-t border-border pt-4">
+      <div className="text-muted-foreground flex min-h-24 items-center justify-center rounded-xl border border-dashed border-border bg-background/40 p-4 text-center leading-[1.5]">
         Chat opens when you&apos;re matched. Stuck on a word? Write it in Mongolian and press Fix.
       </div>
       <div className="flex flex-wrap items-center gap-2 opacity-55">
@@ -24,7 +24,7 @@ export function IdleChat() {
           disabled
           placeholder="Type a message"
           aria-label="Message"
-          className="bg-stage min-h-12 flex-1 rounded-xl border border-white/12 px-3.5 text-base text-white placeholder:text-[#6F74A6]"
+          className="bg-stage min-h-12 flex-1 rounded-xl border border-border px-3.5 text-base text-foreground placeholder:text-muted-foreground"
         />
         <button
           type="button"
@@ -49,14 +49,14 @@ export function IdleCoach() {
   return (
     <aside
       aria-label="Coach"
-      className="bg-panel flex min-w-0 flex-1 basis-80 flex-col gap-5 rounded-[22px] p-5.5"
+      className="bg-panel flex min-w-0 flex-1 basis-80 flex-col gap-5 rounded-[20px] border border-border p-5.5 shadow-lg"
     >
       <div className="flex flex-col gap-2.5">
         <span className="text-dim-dark text-sm">Your first topic</span>
         <h2 className="font-display m-0 text-[22px] leading-[1.25] font-bold text-white">
           Getting to know each other
         </h2>
-        <ul className="m-0 flex list-disc flex-col gap-2 pl-4.5 leading-[1.45] text-[#D7DAF2]">
+        <ul className="m-0 flex list-disc flex-col gap-2 pl-4.5 leading-[1.5] text-muted-foreground marker:text-brand-partner">
           {FIRST_QUESTIONS.map((q) => (
             <li key={q}>{q}</li>
           ))}
@@ -68,14 +68,14 @@ export function IdleCoach() {
           <button
             type="button"
             disabled
-            className="min-h-11 rounded-xl border border-white/14 bg-transparent px-3.5 text-[15px] font-semibold text-[#8A8FC0]"
+            className="min-h-11 rounded-xl border border-border bg-card/50 px-3.5 text-[15px] font-semibold text-muted-foreground"
           >
             New topic
           </button>
           <button
             type="button"
             disabled
-            className="min-h-11 rounded-xl border border-[rgba(240,165,50,0.4)] bg-transparent px-3.5 text-[15px] font-bold text-[rgba(247,201,120,0.7)]"
+            className="min-h-11 rounded-xl border border-brand-partner/40 bg-brand-partner/10 px-3.5 text-[15px] font-bold text-brand-partner-text"
           >
             Start role-play
           </button>
@@ -97,16 +97,16 @@ export function WarmupCoach() {
   return (
     <aside
       aria-label="Warm-up"
-      className="bg-panel flex min-w-0 flex-1 basis-80 flex-col gap-4.5 rounded-[22px] p-5.5"
+      className="bg-panel flex min-w-0 flex-1 basis-80 flex-col gap-4.5 rounded-[20px] border border-border p-5.5 shadow-lg"
     >
       <span className="text-dim-dark text-sm">Warm up while you wait</span>
       <p className="font-display m-0 text-xl leading-[1.35] font-bold text-white">
         Say it out loud: &ldquo;I&apos;ve been learning English for…&rdquo;
       </p>
       <div className="flex flex-col gap-2.5">
-        <span className="font-semibold text-white">Good first questions</span>
+        <span className="font-semibold text-foreground">Good first questions</span>
         {FIRST_QUESTIONS.map((q) => (
-          <span key={q} className="rounded-xl bg-white/6 px-3.5 py-3 leading-[1.45] text-white">
+          <span key={q} className="rounded-xl bg-white/6 px-3.5 py-3 leading-[1.45] text-foreground">
             {q}
           </span>
         ))}
