@@ -11,7 +11,7 @@ import {
 import { ChevronDown, Play, Square } from "lucide-react";
 
 const SHELL =
-  "min-h-16 flex items-center justify-center gap-2.5 rounded-2xl text-[20px] font-extrabold";
+  "min-h-16 flex items-center justify-center gap-2.5 rounded-[16px] text-[18px] font-bold transition-colors focus-visible:ring-4 focus-visible:ring-brand-partner/30";
 
 export function IdleControls({
   language,
@@ -32,7 +32,11 @@ export function IdleControls({
 }) {
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
-      <button type="button" onClick={onStart} className={`${SHELL} bg-brand-partner text-ink cursor-pointer border-0`}>
+      <button
+        type="button"
+        onClick={onStart}
+        className={`${SHELL} bg-brand-partner text-ink cursor-pointer border-0 shadow-sm hover:brightness-105 hover:shadow-md active:scale-[0.99]`}
+      >
         <Play className="size-5.5 fill-current" />
         Start
       </button>
@@ -41,7 +45,7 @@ export function IdleControls({
         type="button"
         onClick={onStop}
         disabled={!canStop}
-        className={`${SHELL} border border-white/14 bg-transparent text-[#8A8FC0] enabled:cursor-pointer enabled:text-white`}
+        className={`${SHELL} border border-border bg-card/70 text-muted-foreground enabled:cursor-pointer enabled:text-foreground enabled:hover:bg-accent disabled:opacity-55`}
       >
         <Square className="size-5 fill-current" />
         Stop
@@ -117,14 +121,14 @@ function Picker({
   return (
     <div
       className={`relative flex min-h-16 items-center justify-between gap-2.5 rounded-2xl border px-4 text-left ${
-        tinted ? "border-brand-you bg-[rgba(59,99,232,0.18)]" : "border-white/22 bg-white/6"
+        tinted ? "border-brand-you/45 bg-brand-you/10" : "border-border bg-card/70"
       }`}
     >
       <span className="flex flex-col gap-0.5">
-        <span className="text-dim-dark text-[13px] font-medium">{label}</span>
-        <span className="text-[17px] font-bold text-white">{value}</span>
+        <span className="text-muted-foreground text-[13px] font-medium">{label}</span>
+        <span className="text-[17px] font-bold text-foreground">{value}</span>
       </span>
-      <ChevronDown aria-hidden="true" className="size-4.5 shrink-0 text-white" />
+      <ChevronDown aria-hidden="true" className="text-muted-foreground size-4.5 shrink-0" />
       {note && <span className="sr-only">{note}</span>}
       {children}
     </div>
@@ -147,7 +151,7 @@ export function SearchingControls({
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-col gap-1">
-        <span className="font-semibold text-white">
+        <span className="font-semibold text-foreground">
           {[language ? languageName(language) : null, level ? levelLabel(language, level) : null, mode]
             .filter(Boolean)
             .join(", ")}
@@ -159,7 +163,7 @@ export function SearchingControls({
       <button
         type="button"
         onClick={onStop}
-        className="min-h-13 cursor-pointer rounded-[14px] border border-white/30 bg-transparent px-6.5 text-base font-bold text-white"
+        className="min-h-13 cursor-pointer rounded-[14px] border border-border bg-card/70 px-6.5 text-base font-bold text-foreground transition-colors hover:bg-accent"
       >
         Stop searching
       </button>

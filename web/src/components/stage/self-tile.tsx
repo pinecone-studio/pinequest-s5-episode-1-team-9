@@ -33,13 +33,13 @@ export function SelfTile({
   const live = Boolean(stream) && camOn && status !== "audio-only";
 
   return (
-    <div className="border-brand-you bg-brand-you-soft relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-[22px] border-[3px]">
+    <div className="border-brand-you bg-brand-you-soft relative flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden rounded-[18px] border-2 shadow-sm">
       {live ? (
         <video ref={video} autoPlay playsInline muted className="size-full -scale-x-100 object-cover" />
       ) : (
         <span
           aria-hidden="true"
-          className="bg-brand-you font-display flex size-24 items-center justify-center rounded-full text-[36px] font-bold text-white"
+          className="bg-brand-you font-display ring-white/10 flex size-24 items-center justify-center rounded-full text-[36px] font-bold text-white shadow-xl ring-8"
         >
           {initial}
         </span>

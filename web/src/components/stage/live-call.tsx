@@ -280,8 +280,8 @@ export function LiveCall({
       </StageHeader>
 
       <main className="flex flex-1 flex-wrap items-start gap-5 px-5 py-5 sm:px-6">
-        <div className="bg-panel flex min-w-0 shrink basis-160 flex-col gap-3.5 rounded-[22px] p-3.5 grow-[999]">
-          <div ref={floatLayer} className="relative grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3.5">
+        <div className="bg-panel flex min-w-0 shrink basis-160 flex-col gap-4 rounded-[20px] border border-border p-4 shadow-xl grow-[999]">
+          <div ref={floatLayer} className="relative grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
             <VideoTile
               stream={rtc.remoteStream}
               side="partner"

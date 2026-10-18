@@ -33,7 +33,7 @@ export function ChatPanel({ chat, myUserId }: { chat: Chat; myUserId: string }) 
   const suggestion = assist && assist.mode !== "ok" ? (assist.mode === "translate" ? assist.english : assist.fixed) : null;
 
   return (
-    <section aria-label="Chat" className="flex flex-col gap-3.5 border-t border-white/10 pt-3.5">
+    <section aria-label="Chat" className="flex flex-col gap-3.5 border-t border-border pt-4">
       <div ref={listRef} className="max-h-52 overflow-y-auto pr-1">
         {chat.messages.length === 0 ? (
           <p className="text-dim-dark m-0 text-[15px] leading-[1.5]">
@@ -80,7 +80,7 @@ export function ChatPanel({ chat, myUserId }: { chat: Chat; myUserId: string }) 
                 type="button"
                 onClick={() => setDraft((d) => (d ? `${d} ${w.word}` : w.word))}
                 title={`${w.meaning}${w.example ? ` — ${w.example}` : ""}`}
-                className="min-h-10 rounded-full border border-white/18 bg-transparent px-3.5 text-[15px] font-semibold text-white"
+                className="min-h-10 rounded-full border border-border bg-card/40 px-3.5 text-[15px] font-semibold text-foreground transition-colors hover:bg-accent"
               >
                 {w.word}
               </button>
@@ -90,7 +90,7 @@ export function ChatPanel({ chat, myUserId }: { chat: Chat; myUserId: string }) 
       )}
 
       {assist && (
-        <div className="flex flex-col gap-2 rounded-[14px] border border-[rgba(127,224,176,0.4)] bg-[rgba(35,168,107,0.14)] px-3.5 py-3">
+        <div className="flex flex-col gap-2 rounded-[14px] border border-fix/35 bg-fix/10 px-3.5 py-3">
           {assist.mode === "ok" ? (
             <div className="text-fix-glow flex items-center gap-2 text-base">
               <Check aria-hidden="true" className="size-4.5" strokeWidth={2.4} />
@@ -101,7 +101,7 @@ export function ChatPanel({ chat, myUserId }: { chat: Chat; myUserId: string }) 
               <div className="text-base leading-[1.5] text-white">
                 <strong className="text-fix-glow font-bold">{suggestion}</strong>
               </div>
-              {assist.reason && <div className="text-sm text-[#B9E9D0]">{assist.reason}</div>}
+                {assist.reason && <div className="text-muted-foreground text-sm">{assist.reason}</div>}
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -113,7 +113,7 @@ export function ChatPanel({ chat, myUserId }: { chat: Chat; myUserId: string }) 
                 <button
                   type="button"
                   onClick={chat.dismissAssist}
-                  className="min-h-10 rounded-[10px] border border-white/20 bg-transparent px-3.5 text-[15px] font-semibold text-white"
+                  className="min-h-10 rounded-[10px] border border-border bg-card/40 px-3.5 text-[15px] font-semibold text-foreground transition-colors hover:bg-accent"
                 >
                   Keep mine
                 </button>
@@ -140,7 +140,7 @@ export function ChatPanel({ chat, myUserId }: { chat: Chat; myUserId: string }) 
           maxLength={CHAT_MAX_CHARS}
           placeholder="Type a message, or write in Mongolian and press Fix"
           aria-label="Message"
-          className="bg-stage min-h-12 min-w-0 flex-1 rounded-xl border border-white/18 px-3.5 text-base text-white placeholder:text-[#6F74A6]"
+          className="bg-stage min-h-12 min-w-0 flex-1 rounded-xl border border-border px-3.5 text-base text-foreground placeholder:text-muted-foreground"
         />
         {chat.aiAvailable && (
           <button
@@ -148,7 +148,7 @@ export function ChatPanel({ chat, myUserId }: { chat: Chat; myUserId: string }) 
             onClick={() => chat.requestAssist(draft)}
             disabled={!draft.trim() || chat.assistLoading}
             aria-label="Check with AI"
-            className="text-fix-glow inline-flex min-h-12 items-center gap-1.5 rounded-xl border border-[#7FE0B0] bg-transparent px-3.5 text-[15px] font-bold disabled:opacity-50"
+            className="text-fix-glow inline-flex min-h-12 items-center gap-1.5 rounded-xl border border-fix/50 bg-fix/5 px-3.5 text-[15px] font-bold disabled:opacity-50"
           >
             {chat.assistLoading ? (
               <Loader2 aria-hidden="true" className="size-4.5 animate-spin" />

@@ -37,8 +37,8 @@ export function VideoTile({
   return (
     <div
       className={cn(
-        "relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-[22px] border-[3px]",
-        you ? "border-brand-you bg-brand-you-soft" : "border-brand-partner bg-[#2A2763]",
+        "relative flex aspect-[4/3] min-w-0 items-center justify-center overflow-hidden rounded-[18px] border-2 shadow-sm",
+        you ? "border-brand-you bg-brand-you-soft" : "border-brand-partner/70 bg-panel",
       )}
     >
       {live ? (
