@@ -11,6 +11,7 @@ export function VideoTile({
   mirrored = false,
   muted = false,
   showVideo = true,
+  blurred = false,
   placeholder,
   children,
 }: {
@@ -21,6 +22,7 @@ export function VideoTile({
   mirrored?: boolean;
   muted?: boolean;
   showVideo?: boolean;
+  blurred?: boolean;
   placeholder?: React.ReactNode;
   children?: React.ReactNode;
 }) {
@@ -47,7 +49,11 @@ export function VideoTile({
           autoPlay
           playsInline
           muted={muted}
-          className={cn("size-full object-cover", mirrored && "-scale-x-100")}
+          className={cn(
+            "size-full object-cover transition-[filter]",
+            mirrored && "-scale-x-100",
+            blurred && "scale-110 blur-2xl",
+          )}
         />
       ) : (
         (placeholder ?? (

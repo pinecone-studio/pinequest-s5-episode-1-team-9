@@ -10,11 +10,10 @@ import {
   type ServerToClientEvents,
   type Topic,
 } from "@linguamatch/shared";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatPanel } from "@/components/room/chat-panel";
 import { CoachPanel } from "@/components/room/coach-panel";
-import { LiveCaptions } from "@/components/room/live-captions";
 import { BlockDialog, ReportDialog } from "@/components/room/safety-dialogs";
 import { VideoTile } from "@/components/room/video-tile";
 import { LiveControls } from "@/components/stage/live-controls";
@@ -72,6 +71,7 @@ export function LiveCall({
   const [leaving, setLeaving] = useState(false);
   const [transcriptEntries, setTranscriptEntries] = useState<LiveTranscriptEntry[]>([]);
   const [dialog, setDialog] = useState<null | "report" | "block">(null);
+  const [partnerHidden, setPartnerHidden] = useState(false);
   const [now, setNow] = useState(Date.now());
   const roleplay = useRoleplay(socket, roomId, Boolean(info) && !ended);
 
@@ -287,6 +287,7 @@ export function LiveCall({
               side="partner"
               label={partner ? `${partnerName}${roleSuffix}, ${partnerLevel}` : "Connecting to your partner…"}
               initial={partnerName.charAt(0).toUpperCase()}
+              blurred={partnerHidden}
               placeholder={
                 !partnerPresent ? (
                   <div className="text-dim-dark flex flex-col items-center gap-3 text-[15px]">
@@ -295,7 +296,43 @@ export function LiveCall({
                   </div>
                 ) : undefined
               }
-            />
+            >
+              {info && (
+                <div className="absolute right-3 bottom-3 flex items-center gap-2">
+                  {partnerHidden && (
+                    <button
+                      type="button"
+                      onClick={() => setDialog("report")}
+                      className="min-h-11 rounded-full bg-[rgba(20,18,58,0.85)] px-3.5 text-sm font-bold text-[#FFB4B4]"
+                    >
+                      Report
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPartnerHidden((hidden) => !hidden)}
+                    aria-pressed={partnerHidden}
+                    aria-label={partnerHidden ? "Show your partner's video" : "Hide your partner's video"}
+                    title={partnerHidden ? "Show video" : "Hide video"}
+                    className="grid size-11 place-items-center rounded-full bg-[rgba(20,18,58,0.85)] text-white"
+                  >
+                    {partnerHidden ? (
+                      <Eye aria-hidden="true" className="size-5" />
+                    ) : (
+                      <EyeOff aria-hidden="true" className="size-5" />
+                    )}
+                  </button>
+                </div>
+              )}
+              {partnerHidden && (
+                <span
+                  role="status"
+                  className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-sm font-semibold text-white"
+                >
+                  Video hidden
+                </span>
+              )}
+            </VideoTile>
             <VideoTile
               stream={media.stream}
               side="you"
@@ -306,8 +343,6 @@ export function LiveCall({
               showVideo={media.camOn}
             />
           </div>
-
-          <LiveCaptions speech={speech} consent={consent} />
 
           {socket && user && (
             <EmojiReactions socket={socket} roomId={roomId} myUserId={user.id} layer={floatLayer} />
