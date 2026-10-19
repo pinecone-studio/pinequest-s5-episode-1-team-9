@@ -55,7 +55,9 @@ export function chatEvidence(sessionId: string): ChatEvidenceLine[] | null {
   }));
 }
 
-export function syncChat(sessionId: string, userId: string) {
+export async function syncChat(sessionId: string, userId: string) {
+  const session = await findSession(sessionId);
+  if (!session || !participantOf(session, userId)) return;
   const s = chats.get(sessionId);
   getIO()
     .to(userRoom(userId))
